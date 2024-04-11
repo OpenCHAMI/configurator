@@ -1,3 +1,6 @@
+//go:build client || all
+// +build client all
+
 package cmd
 
 import (
@@ -43,11 +46,13 @@ var generateCmd = &cobra.Command{
 			for _, target := range targets {
 				// split the target and type
 				tmp := strings.Split(target, ":")
-				configType := tmp[0]
-				configTemplate := tmp[1]
+				g := generator.Generator{
+					Type:     tmp[0],
+					Template: tmp[1],
+				}
 
 				// NOTE: we probably don't want to hardcode the types, but should do for now
-				if configType == "dhcp" {
+				if g.Type == "dhcp" {
 					// fetch eths from SMD
 					eths, err := client.FetchEthernetInterfaces()
 					if err != nil {
@@ -57,17 +62,17 @@ var generateCmd = &cobra.Command{
 						break
 					}
 					// generate a new config from that data
-					g := generator.New()
-					g.GenerateDHCP(config, configTemplate, eths)
-				} else if configType == "dns" {
+
+					g.GenerateDHCP(&config, eths)
+				} else if g.Type == "dns" {
 					// TODO: fetch from SMD
 					// TODO: generate config from pulled info
 
-				} else if configType == "syslog" {
+				} else if g.Type == "syslog" {
 
-				} else if configType == "ansible" {
+				} else if g.Type == "ansible" {
 
-				} else if configType == "warewulf" {
+				} else if g.Type == "warewulf" {
 
 				}
 

@@ -11,7 +11,7 @@ import (
 
 var (
 	configPath string
-	config     *configurator.Config
+	config     configurator.Config
 )
 
 var rootCmd = &cobra.Command{
@@ -34,7 +34,7 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "set the config path")
+	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "set the config path")
 }
 
 func initConfig() {
