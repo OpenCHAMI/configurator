@@ -33,5 +33,7 @@ var serveCmd = &cobra.Command{
 func init() {
 	serveCmd.Flags().StringVar(&config.Server.Host, "host", config.Server.Host, "set the server host")
 	serveCmd.Flags().IntVar(&config.Server.Port, "port", config.Server.Port, "set the server port")
+	serveCmd.Flags().StringVar(&config.Options.JwksUri, "jwks-uri", config.Options.JwksUri, "set the JWKS url to fetch public key")
+	serveCmd.Flags().IntVar(&config.Options.JwksRetries, "jwks-fetch-retries", config.Options.JwksRetries, "set the JWKS fetch retry count")
 	rootCmd.AddCommand(serveCmd)
 }
