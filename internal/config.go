@@ -8,16 +8,27 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+type Options struct {
+	JwksUri     string `yaml:"jwks-uri"`
+	JwksRetries int    `yaml:"jwks-retries"`
+}
+
+type Server struct {
+	Host string `yaml:"host"`
+	Port int    `yaml:"port"`
+}
 type Config struct {
 	Version       string            `yaml:"version"`
 	SmdHost       string            `yaml:"smd-host"`
 	SmdPort       int               `yaml:"smd-port"`
 	AccessToken   string            `yaml:"access-token"`
 	TemplatePaths map[string]string `yaml:"templates"`
+	Server        Server            `yaml:"server"`
+	Options       Options           `yaml:"options"`
 }
 
-func NewConfig() *Config {
-	return &Config{
+func NewConfig() Config {
+	return Config{
 		Version: "",
 		SmdHost: "http://127.0.0.1",
 		SmdPort: 27779,
@@ -28,11 +39,19 @@ func NewConfig() *Config {
 			"powerman": "templates/powerman",
 			"conman":   "templates/conman",
 		},
+		Server: Server{
+			Host: "127.0.0.1",
+			Port: 3334,
+		},
+		Options: Options{
+			JwksUri:     "",
+			JwksRetries: 5,
+		},
 	}
 }
 
-func LoadConfig(path string) *Config {
-	var c *Config = NewConfig()
+func LoadConfig(path string) Config {
+	var c Config = NewConfig()
 	file, err := os.ReadFile(path)
 	if err != nil {
 		log.Printf("failed to read config file: %v\n", err)

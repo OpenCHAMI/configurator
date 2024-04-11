@@ -11,6 +11,8 @@ import (
 )
 
 type Generator struct {
+	Type     string
+	Template string
 }
 
 func New() *Generator {
@@ -24,12 +26,11 @@ func (g *Generator) GenerateDNS(config *configurator.Config) {
 	// TODO: print generated config file to STDOUT
 }
 
-func (g *Generator) GenerateDHCP(config *configurator.Config, target string, eths []configurator.EthernetInterface) error {
+func (g *Generator) GenerateDHCP(config *configurator.Config, eths []configurator.EthernetInterface) error {
 	// generate file using gonja template
-	// TODO: load template file for DHCP
-	path := config.TemplatePaths[target]
+	path := config.TemplatePaths[g.Template]
 	fmt.Printf("path: %s\neth count: %v\n", path, len(eths))
-	t, err := gonja.FromFile(config.TemplatePaths[target])
+	t, err := gonja.FromFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read template from file: %v", err)
 	}
