@@ -81,6 +81,7 @@ var generateCmd = &cobra.Command{
 
 				// NOTE: we probably don't want to hardcode the types, but should do for now
 				ext := ""
+				contents := []byte{}
 				if g.Type == "dhcp" {
 					// fetch eths from SMD
 					eths, err := client.FetchEthernetInterfaces()
@@ -92,7 +93,7 @@ var generateCmd = &cobra.Command{
 						continue
 					}
 					// generate a new config from that data
-					b, err := g.GenerateDHCP(&config, eths)
+					contents, err = g.GenerateDHCP(&config, eths)
 					if err != nil {
 						logrus.Errorf("failed to generate DHCP config file: %v\n", err)
 						continue
@@ -117,14 +118,14 @@ var generateCmd = &cobra.Command{
 						fmt.Printf("%s\n", "")
 					} else if outputPath != "" && targetCount == 1 {
 						// write just a single file using template name
-						err := os.WriteFile(outputPath)
+						err := os.WriteFile(outputPath, contents, 0o644)
 						if err != nil {
 							logrus.Errorf("failed to write config to file: %v", err)
 							continue
 						}
 					} else if outputPath != "" && targetCount > 1 {
 						// write multiple files in directory using template name
-						err := os.WriteFile(fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), g.Template, ext))
+						err := os.WriteFile(fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), g.Template, ext), contents, 0o644)
 						if err != nil {
 							logrus.Errorf("failed to write config to file: %v", err)
 							continue

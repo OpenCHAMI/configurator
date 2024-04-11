@@ -13,7 +13,7 @@ var (
 	configPath string
 	config     configurator.Config
 	targets    []string
-	output     string
+	outputPath string
 )
 
 var rootCmd = &cobra.Command{
