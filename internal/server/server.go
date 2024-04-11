@@ -86,12 +86,13 @@ func (s *Server) Start(config *configurator.Config) error {
 				}
 				// generate a new config from that data
 
-				err = g.GenerateDHCP(config, eths)
+				b, err := g.GenerateDHCP(config, eths)
 				if err != nil {
 					logrus.Errorf("failed to generate DHCP: %v", err)
 					w.Write([]byte("An error has occurred."))
 					return
 				}
+				w.Write(b)
 			}
 		})
 		r.HandleFunc("/templates", func(w http.ResponseWriter, r *http.Request) {
