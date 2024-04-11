@@ -12,6 +12,8 @@ import (
 var (
 	configPath string
 	config     configurator.Config
+	targets    []string
+	output     string
 )
 
 var rootCmd = &cobra.Command{
