@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	configurator "github.com/OpenCHAMI/configurator/internal"
@@ -15,12 +16,12 @@ import (
 )
 
 var (
-	targets           []string
 	tokenFetchRetries int
 )
+
 var generateCmd = &cobra.Command{
 	Use:   "generate",
-	Short: "Create a config file from current system state",
+	Short: "Generate a config file from system state",
 	Run: func(cmd *cobra.Command, args []string) {
 		client := configurator.SmdClient{
 			Host:        config.SmdHost,
@@ -43,27 +44,60 @@ var generateCmd = &cobra.Command{
 		if targets == nil {
 			logrus.Errorf("no target supplied (--target type:template)")
 		} else {
+			// if we have more than one target and output is set, create configs in directory
+			targetCount := len(targets)
+			if outputPath != "" && targetCount > 1 {
+				err := os.MkdirAll(outputPath, 0o755)
+				if err != nil {
+					logrus.Errorf("failed to make output directory: %v", err)
+					return
+				}
+			}
+
 			for _, target := range targets {
 				// split the target and type
 				tmp := strings.Split(target, ":")
+
+				// make sure each target has at least two args
+				if len(tmp) < 2 {
+					message := "target"
+					if len(tmp) == 1 {
+						message += fmt.Sprintf(" '%s'", tmp[1])
+					}
+					message += " does not provide enough arguments (args: \"type:template\")"
+					logrus.Errorf(message)
+					continue
+				}
 				g := generator.Generator{
 					Type:     tmp[0],
 					Template: tmp[1],
 				}
 
+				// check if another param is specified
+				targetPath := ""
+				if len(tmp) > 2 {
+					targetPath = tmp[2]
+				}
+
 				// NOTE: we probably don't want to hardcode the types, but should do for now
+				ext := ""
 				if g.Type == "dhcp" {
 					// fetch eths from SMD
 					eths, err := client.FetchEthernetInterfaces()
 					if err != nil {
 						logrus.Errorf("failed to fetch DHCP metadata: %v\n", err)
+						continue
 					}
 					if len(eths) <= 0 {
-						break
+						continue
 					}
 					// generate a new config from that data
-
-					g.GenerateDHCP(&config, eths)
+					b, err := g.GenerateDHCP(&config, eths)
+					if err != nil {
+						logrus.Errorf("failed to generate DHCP config file: %v\n", err)
+						continue
+					}
+					ext = "conf"
 				} else if g.Type == "dns" {
 					// TODO: fetch from SMD
 					// TODO: generate config from pulled info
@@ -76,14 +110,35 @@ var generateCmd = &cobra.Command{
 
 				}
 
-			}
+				// write config output if no specific targetPath is set
+				if targetPath == "" {
+					if outputPath == "" {
+						// write only to stdout
+						fmt.Printf("%s\n", "")
+					} else if outputPath != "" && targetCount == 1 {
+						// write just a single file using template name
+						err := os.WriteFile(outputPath)
+						if err != nil {
+							logrus.Errorf("failed to write config to file: %v", err)
+							continue
+						}
+					} else if outputPath != "" && targetCount > 1 {
+						// write multiple files in directory using template name
+						err := os.WriteFile(fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), g.Template, ext))
+						if err != nil {
+							logrus.Errorf("failed to write config to file: %v", err)
+							continue
+						}
+					}
+				}
+			} // for targets
 		}
-
 	},
 }
 
 func init() {
 	generateCmd.Flags().StringSliceVar(&targets, "target", nil, "set the target configs to make")
+	generateCmd.Flags().StringVarP(&outputPath, "output", "o", "", "set the output path for config targets")
 	generateCmd.Flags().IntVar(&tokenFetchRetries, "fetch-retries", 5, "set the number of retries to fetch an access token")
 
 	rootCmd.AddCommand(generateCmd)
