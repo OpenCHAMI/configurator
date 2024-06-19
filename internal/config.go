@@ -8,45 +8,53 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type Options struct {
-	JwksUri     string `yaml:"jwks-uri"`
-	JwksRetries int    `yaml:"jwks-retries"`
+type Options struct{}
+
+type Jwks struct {
+	Uri     string `yaml:"uri"`
+	Retries int    `yaml:"retries"`
 }
 
 type Server struct {
 	Host string `yaml:"host"`
 	Port int    `yaml:"port"`
+	Jwks Jwks   `yaml:"jwks"`
 }
+
 type Config struct {
 	Version       string            `yaml:"version"`
-	SmdHost       string            `yaml:"smd-host"`
-	SmdPort       int               `yaml:"smd-port"`
+	Server        Server            `yaml:"server"`
+	SmdClient     SmdClient         `yaml:"smd"`
 	AccessToken   string            `yaml:"access-token"`
 	TemplatePaths map[string]string `yaml:"templates"`
-	Server        Server            `yaml:"server"`
+	Plugins       []string          `yaml:"plugins"`
 	Options       Options           `yaml:"options"`
 }
 
 func NewConfig() Config {
 	return Config{
 		Version: "",
-		SmdHost: "http://127.0.0.1",
-		SmdPort: 27779,
-		TemplatePaths: map[string]string{
-			"dnsmasq":  "templates/dhcp/dnsmasq.conf",
-			"syslog":   "templates/syslog/",
-			"ansible":  "templates/ansible",
-			"powerman": "templates/powerman",
-			"conman":   "templates/conman",
+		SmdClient: SmdClient{
+			Host: "http://127.0.0.1",
+			Port: 27779,
 		},
+		TemplatePaths: map[string]string{
+			"dnsmasq":  "templates/dnsmasq.jinja",
+			"syslog":   "templates/syslog.jinja",
+			"ansible":  "templates/ansible.jinja",
+			"powerman": "templates/powerman.jinja",
+			"conman":   "templates/conman.jinja",
+		},
+		Plugins: []string{},
 		Server: Server{
 			Host: "127.0.0.1",
 			Port: 3334,
+			Jwks: Jwks{
+				Uri:     "",
+				Retries: 5,
+			},
 		},
-		Options: Options{
-			JwksUri:     "",
-			JwksRetries: 5,
-		},
+		Options: Options{},
 	}
 }
 
