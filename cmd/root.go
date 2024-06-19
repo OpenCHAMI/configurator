@@ -12,6 +12,7 @@ import (
 var (
 	configPath string
 	config     configurator.Config
+	verbose    bool
 	targets    []string
 	outputPath string
 )
@@ -36,7 +37,8 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "set the config path")
+	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "./config.yaml", "set the config path")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "set to enable verbose output")
 }
 
 func initConfig() {

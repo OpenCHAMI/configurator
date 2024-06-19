@@ -15,8 +15,11 @@ type EthernetInterface struct {
 	IpAddresses []IPAddr
 }
 
-type DHCP struct {
-	Hostname   string
-	MacAddress string
-	IpAddress  []IPAddr
+type Component struct {
+}
+
+type Node struct {
+}
+
+type BMC struct {
 }
