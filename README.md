@@ -142,6 +142,7 @@ The `server` section sets the properties for running the `configurator` tool as 
 ## Known Issues
 
 - Adds a new `OAuthClient` with every token request
+- Plugins are being loaded each time a file is generated
 
 ## TODO
 
