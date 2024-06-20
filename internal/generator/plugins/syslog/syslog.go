@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	configurator "github.com/OpenCHAMI/configurator/internal"
 	"github.com/OpenCHAMI/configurator/internal/util"
 )
@@ -16,7 +18,7 @@ func (g *Syslog) GetGroups() []string {
 }
 
 func (g *Syslog) Generate(config *configurator.Config, opts ...util.Option) ([]byte, error) {
-	return nil, nil
+	return nil, fmt.Errorf("plugin does not implement generation function")
 }
 
 var Generator Syslog
