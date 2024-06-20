@@ -1,6 +1,6 @@
 # OpenCHAMI Configurator
 
-The `configurator` (portmanteau of config + generator) is a tool that fetchs data from an instance of [SMD](https://github.com/OpenCHAMI/smd) to generate commonly used config files. The tool is also capable of some templating using the Jinja 2 syntax with generator plugins.
+The `configurator` (portmanteau of config + generator) is an extensible tool that fetchs data from an instance of [SMD](https://github.com/OpenCHAMI/smd) to generate commonly used config files based on Jinja 2 template files. The tool and generator plugins are written in Go and plugins can be written by following the ["Creating Generator Plugins"](#creating-generator-plugins) section of this README.
 
 ## Building and Usage
 
@@ -32,16 +32,18 @@ These commands will build the default plugins and store them in the "lib" direct
 
 This will generate a new `dnsmasq` config file based on the Jinja 2 template specified in the config file for "dnsmasq". The `--target` flag specifies the type of config file to generate by its name (see the [`Creating Generator Plugins`](#creating-generator-plugins) section for details). The `configurator` tool requires a valid access token when making requests to an instance of SMD that has protected routes.
 
-The tool can also run as a microservice:
+The tool can also run as a service to generate files for clients:
 
 ```bash
 ./configurator serve --config config.yaml
 ```
 
-Once the server is up and listening for HTTP requests, you can try making a request to it with curl:
+Once the server is up and listening for HTTP requests, you can try making a request to it with `curl` or `configurator fetch`. Both commands below are essentially equivalent:
 
 ```bash
-curl http://127.0.0.1:3334/target?type=dhcp&template=dnsmasq
+curl http://127.0.0.1:3334/generate?target=dnsmasq
+# ...or...
+./configurator fetch --target dnsmasq --host http://127.0.0.1 --port 3334
 ```
 
 This will do the same thing as the `generate` subcommand, but remotely.
@@ -108,30 +110,30 @@ Now your plugin should be available to use with the `configurator` main driver.
 Here is an example config file to start using configurator:
 
 ```yaml
-server:
+server:                               # server settings when using as service
   host: 127.0.0.1
   port: 3334
-  jwks:
+  jwks:                               # set URL for JWKS to enable auth
     uri: ""
     retries: 5
-smd:
+smd:                                  # settings for SMD service
   host: http://127.0.0.1
   port: 27779
-templates:
+templates:                            # template mappings to generator plugins (by name)
   dnsmasq: templates/dnsmasq.jinja
   coredhcp: templates/coredhcp.jinja
   syslog: templates/syslog.jinja
   ansible: templates/ansible.jinja
   powerman: templates/powerman.jinja
   conman: templates/conman.jinja
-groups:
+groups:                               # (WIP) setting to allow creating configs by groups
   warewulf:
     - dnsmasq
     - syslog
     - ansible
     - powerman
     - conman
-plugins:
+plugins:                              # path to plugin directories (may change to include files as well)
   - "lib/"
 ```
 
@@ -143,6 +145,6 @@ The `server` section sets the properties for running the `configurator` tool as 
 
 ## TODO
 
-- Add group functionality
-- Extend SMD client functionality
-- Redo service API with authorization
+- Add group functionality to create by files by groups
+- Extend SMD client functionality (or make extensible?)
+- Handle authentication with `OAuthClient`'s correctly
