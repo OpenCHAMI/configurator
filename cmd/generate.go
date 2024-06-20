@@ -32,6 +32,22 @@ var generateCmd = &cobra.Command{
 			}
 		}
 
+		// make sure that we have a token present before trying to make request
+		if config.AccessToken == "" {
+			// TODO: make request to check if request will need token
+
+			// check if OCHAMI_ACCESS_TOKEN env var is set if no access token is provided and use that instead
+			accessToken := os.Getenv("ACCESS_TOKEN")
+			if accessToken != "" {
+				config.AccessToken = accessToken
+			} else {
+				// TODO: try and fetch token first if it is needed
+				if verbose {
+					fmt.Printf("No token found. Attempting to generate config without one...\n")
+				}
+			}
+		}
+
 		// use config plugins if none supplied via CLI
 		if len(pluginPaths) <= 0 {
 			pluginPaths = append(pluginPaths, config.PluginDirs...)

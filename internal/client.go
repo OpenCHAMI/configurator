@@ -76,7 +76,21 @@ func (client *SmdClient) FetchComponents(opts ...util.Option) ([]Component, erro
 		return nil, fmt.Errorf("failed to make HTTP request: %v", err)
 	}
 
+	// make sure our response is actually JSON
+	if !json.Valid(b) {
+		return nil, fmt.Errorf("expected valid JSON response: %v", string(b))
+	}
+
 	// unmarshal response body JSON and extract in object
+	var tmp map[string]any
+	err = json.Unmarshal(b, &tmp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+	b, err = json.Marshal(tmp["RedfishEndpoints"].([]any))
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON: %v", err)
+	}
 	err = json.Unmarshal(b, &comps)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
@@ -96,15 +110,27 @@ func (client *SmdClient) FetchRedfishEndpoints(opts ...util.Option) ([]RedfishEn
 	var (
 		params  = util.GetParams(opts...)
 		verbose = util.Get[bool](params, "verbose")
-		rfs     = []RedfishEndpoint{}
+		eps     = []RedfishEndpoint{}
 	)
 
 	b, err := client.makeRequest("/Inventory/RedfishEndpoints")
 	if err != nil {
 		return nil, fmt.Errorf("failed to make HTTP resquest: %v", err)
 	}
+	if !json.Valid(b) {
+		return nil, fmt.Errorf("expected valid JSON response: %v", string(b))
+	}
+	var tmp map[string]any
+	err = json.Unmarshal(b, &tmp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
 
-	err = json.Unmarshal(b, &rfs)
+	b, err = json.Marshal(tmp["RedfishEndpoints"].([]any))
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON: %v", err)
+	}
+	err = json.Unmarshal(b, &eps)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
@@ -115,7 +141,7 @@ func (client *SmdClient) FetchRedfishEndpoints(opts ...util.Option) ([]RedfishEn
 		}
 	}
 
-	return rfs, nil
+	return eps, nil
 }
 
 func (client *SmdClient) makeRequest(endpoint string) ([]byte, error) {
