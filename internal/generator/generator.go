@@ -160,22 +160,6 @@ func Generate(config *configurator.Config, params Params) ([]byte, error) {
 		}
 	)
 
-	// make sure that we have a token present before trying to make request
-	if config.AccessToken == "" {
-		// TODO: make request to check if request will need token
-
-		// check if OCHAMI_ACCESS_TOKEN env var is set if no access token is provided and use that instead
-		accessToken := os.Getenv("ACCESS_TOKEN")
-		if accessToken != "" {
-			config.AccessToken = accessToken
-		} else {
-			// TODO: try and fetch token first if it is needed
-			if params.Verbose {
-				fmt.Printf("No token found. Attempting to generate config without one...\n")
-			}
-		}
-	}
-
 	// load all plugins from params
 	for _, path := range params.PluginPaths {
 		if params.Verbose {
