@@ -4,6 +4,7 @@ all: plugins exe
 
 # build the main executable to make configs
 main: exe
+driver: exe
 exe:
 	go build --tags=all -o configurator
 
