@@ -11,7 +11,7 @@ import (
 )
 
 type SmdClient struct {
-	http.Client
+	http.Client `json:"-"`
 	Host        string `yaml:"host"`
 	Port        int    `yaml:"port"`
 	AccessToken string `yaml:"access-token"`
@@ -20,7 +20,7 @@ type SmdClient struct {
 type Params = map[string]any
 type Option func(Params)
 
-func WithVerbose() Option {
+func WithVerbosity() Option {
 	return func(p util.Params) {
 		p["verbose"] = true
 	}
@@ -35,6 +35,11 @@ func NewParams() Params {
 // Fetch the ethernet interfaces from SMD service using its API. An access token may be required if the SMD
 // service SMD_JWKS_URL envirnoment variable is set.
 func (client *SmdClient) FetchEthernetInterfaces(opts ...util.Option) ([]EthernetInterface, error) {
+	var (
+		params  = util.GetParams(opts...)
+		verbose = util.Get[bool](params, "verbose")
+		eths    = []EthernetInterface{}
+	)
 	// make request to SMD endpoint
 	b, err := client.makeRequest("/Inventory/EthernetInterfaces")
 	if err != nil {
@@ -42,16 +47,14 @@ func (client *SmdClient) FetchEthernetInterfaces(opts ...util.Option) ([]Etherne
 	}
 
 	// unmarshal response body JSON and extract in object
-	eths := []EthernetInterface{} // []map[string]any{}
 	err = json.Unmarshal(b, &eths)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
 
 	// print what we got if verbose is set
-	params := util.GetParams(opts...)
-	if verbose, ok := params["verbose"].(bool); ok {
-		if verbose {
+	if verbose != nil {
+		if *verbose {
 			fmt.Printf("Ethernet Interfaces: %v\n", string(b))
 		}
 	}
@@ -62,28 +65,57 @@ func (client *SmdClient) FetchEthernetInterfaces(opts ...util.Option) ([]Etherne
 // Fetch the components from SMD using its API. An access token may be required if the SMD
 // service SMD_JWKS_URL envirnoment variable is set.
 func (client *SmdClient) FetchComponents(opts ...util.Option) ([]Component, error) {
+	var (
+		params  = util.GetParams(opts...)
+		verbose = util.Get[bool](params, "verbose")
+		comps   = []Component{}
+	)
 	// make request to SMD endpoint
 	b, err := client.makeRequest("/State/Components")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read HTTP response: %v", err)
+		return nil, fmt.Errorf("failed to make HTTP request: %v", err)
 	}
 
 	// unmarshal response body JSON and extract in object
-	comps := []Component{}
 	err = json.Unmarshal(b, &comps)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
 
 	// print what we got if verbose is set
-	params := util.GetParams(opts...)
-	if verbose, ok := params["verbose"].(bool); ok {
-		if verbose {
+	if verbose != nil {
+		if *verbose {
 			fmt.Printf("Components: %v\n", string(b))
 		}
 	}
 
 	return comps, nil
+}
+
+func (client *SmdClient) FetchRedfishEndpoints(opts ...util.Option) ([]RedfishEndpoint, error) {
+	var (
+		params  = util.GetParams(opts...)
+		verbose = util.Get[bool](params, "verbose")
+		rfs     = []RedfishEndpoint{}
+	)
+
+	b, err := client.makeRequest("/Inventory/RedfishEndpoints")
+	if err != nil {
+		return nil, fmt.Errorf("failed to make HTTP resquest: %v", err)
+	}
+
+	err = json.Unmarshal(b, &rfs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+
+	if verbose != nil {
+		if *verbose {
+			fmt.Printf("Redfish endpoints: %v\n", string(b))
+		}
+	}
+
+	return rfs, nil
 }
 
 func (client *SmdClient) makeRequest(endpoint string) ([]byte, error) {

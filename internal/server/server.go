@@ -9,6 +9,7 @@ import (
 	"time"
 
 	configurator "github.com/OpenCHAMI/configurator/internal"
+	"github.com/OpenCHAMI/configurator/internal/generator"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,9 +20,15 @@ var (
 	tokenAuth *jwtauth.JWTAuth = nil
 )
 
+type Jwks struct {
+	Uri     string
+	Retries int
+}
 type Server struct {
 	*http.Server
-	JwksUri string `yaml:"jwks-uri"`
+	Jwks            Jwks `yaml:"jwks"`
+	GeneratorParams generator.Params
+	TokenAuth       *jwtauth.JWTAuth
 }
 
 func New() *Server {
@@ -29,11 +36,14 @@ func New() *Server {
 		Server: &http.Server{
 			Addr: "localhost:3334",
 		},
-		JwksUri: "",
+		Jwks: Jwks{
+			Uri:     "",
+			Retries: 5,
+		},
 	}
 }
 
-func (s *Server) Start(config *configurator.Config) error {
+func (s *Server) Serve(config *configurator.Config) error {
 	// create client just for the server to use to fetch data from SMD
 	_ = &configurator.SmdClient{
 		Host: config.SmdClient.Host,
@@ -56,6 +66,12 @@ func (s *Server) Start(config *configurator.Config) error {
 		}
 	}
 
+	var WriteError = func(w http.ResponseWriter, format string, a ...any) {
+		errmsg := fmt.Sprintf(format, a...)
+		fmt.Printf(errmsg)
+		w.Write([]byte(errmsg))
+	}
+
 	// create new go-chi router with its routes
 	router := chi.NewRouter()
 	router.Use(middleware.RedirectSlashes)
@@ -67,11 +83,19 @@ func (s *Server) Start(config *configurator.Config) error {
 				jwtauth.Authenticator(tokenAuth),
 			)
 		}
-		r.HandleFunc("/target", func(w http.ResponseWriter, r *http.Request) {
-			// g := generator.Generator{
-			// 	Type:     r.URL.Query().Get("type"),
-			// 	Template: r.URL.Query().Get("template"),
-			// }
+		r.HandleFunc("/generate", func(w http.ResponseWriter, r *http.Request) {
+			s.GeneratorParams.Target = r.URL.Query().Get("target")
+			output, err := generator.Generate(config, s.GeneratorParams)
+			if err != nil {
+				WriteError(w, "failed to generate config: %v\n", err)
+				return
+			}
+
+			_, err = w.Write(output)
+			if err != nil {
+				WriteError(w, "failed to write response: %v", err)
+				return
+			}
 
 			// NOTE: we probably don't want to hardcode the types, but should do for now
 			// if _type == "dhcp" {

@@ -27,7 +27,7 @@ type Config struct {
 	SmdClient     SmdClient         `yaml:"smd"`
 	AccessToken   string            `yaml:"access-token"`
 	TemplatePaths map[string]string `yaml:"templates"`
-	Plugins       []string          `yaml:"plugins"`
+	PluginDirs    []string          `yaml:"plugins"`
 	Options       Options           `yaml:"options"`
 }
 
@@ -45,7 +45,7 @@ func NewConfig() Config {
 			"powerman": "templates/powerman.jinja",
 			"conman":   "templates/conman.jinja",
 		},
-		Plugins: []string{},
+		PluginDirs: []string{},
 		Server: Server{
 			Host: "127.0.0.1",
 			Port: 3334,
