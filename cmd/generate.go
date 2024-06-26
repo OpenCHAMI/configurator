@@ -53,7 +53,7 @@ var generateCmd = &cobra.Command{
 		// use cert path from cobra if empty
 		// TODO: this needs to be checked for the correct desired behavior
 		if config.CertPath == "" {
-			config.CertPath = certPath
+			config.CertPath = cacertPath
 		}
 
 		// use config plugins if none supplied via CLI
