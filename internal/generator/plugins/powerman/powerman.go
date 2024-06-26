@@ -17,7 +17,7 @@ func (g *Powerman) GetGroups() []string {
 	return []string{"powerman"}
 }
 
-func (g *Powerman) Generate(config *configurator.Config, opts ...util.Option) ([]byte, error) {
+func (g *Powerman) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {
 	return nil, fmt.Errorf("plugin does not implement generation function")
 }
 

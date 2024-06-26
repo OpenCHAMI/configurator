@@ -13,11 +13,7 @@ func (g *CoreDhcp) GetName() string {
 	return "coredhcp"
 }
 
-func (g *CoreDhcp) GetGroups() []string {
-	return []string{"coredhcp"}
-}
-
-func (g *CoreDhcp) Generate(config *configurator.Config, opts ...util.Option) ([]byte, error) {
+func (g *CoreDhcp) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {
 	return nil, fmt.Errorf("plugin does not implement generation function")
 }
 

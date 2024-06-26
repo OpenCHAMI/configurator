@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	configurator "github.com/OpenCHAMI/configurator/internal"
 	"github.com/OpenCHAMI/configurator/internal/generator"
@@ -10,28 +11,11 @@ import (
 
 type DnsMasq struct{}
 
-func TestGenerateDnsMasq() {
-	var (
-		g      = DnsMasq{}
-		config = &configurator.Config{}
-		client = configurator.SmdClient{}
-	)
-	g.Generate(
-		config,
-		generator.WithTemplate("dnsmasq"),
-		generator.WithClient(client),
-	)
-}
-
 func (g *DnsMasq) GetName() string {
 	return "dnsmasq"
 }
 
-func (g *DnsMasq) GetGroups() []string {
-	return []string{"dnsmasq"}
-}
-
-func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) ([]byte, error) {
+func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {
 	// make sure we have a valid config first
 	if config == nil {
 		return nil, fmt.Errorf("invalid config (config is nil)")
@@ -39,12 +23,12 @@ func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) ([]
 
 	// set all the defaults for variables
 	var (
-		params                                    = generator.GetParams(opts...)
-		client                                    = generator.GetClient(params)
-		template                                  = params["template"].(string) // required param
-		path                                      = config.TemplatePaths[template]
-		eths     []configurator.EthernetInterface = nil
-		err      error                            = nil
+		params                                     = generator.GetParams(opts...)
+		client                                     = generator.GetClient(params)
+		targetKey                                  = params["target"].(string) // required param
+		target                                     = config.Targets[targetKey]
+		eths      []configurator.EthernetInterface = nil
+		err       error                            = nil
 	)
 
 	// if we have a client, try making the request for the ethernet interfaces
@@ -66,7 +50,7 @@ func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) ([]
 	// print message if verbose param found
 	if verbose, ok := params["verbose"].(bool); ok {
 		if verbose {
-			fmt.Printf("path: %s\neth count: %v\n", path, len(eths))
+			fmt.Printf("template: \n%s\n ethernet interfaces found: %v\n", strings.Join(target.Templates, "\n\t"), len(eths))
 		}
 	}
 
@@ -82,10 +66,10 @@ func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) ([]
 	output += "# ====================================================================="
 
 	// apply template substitutions and return output as byte array
-	return generator.ApplyTemplate(path, generator.Mappings{
+	return generator.ApplyTemplates(generator.Mappings{
 		"name":   g.GetName(),
 		"output": output,
-	})
+	}, target.Templates...)
 }
 
 var Generator DnsMasq

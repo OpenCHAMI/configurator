@@ -15,17 +15,17 @@ func (g *Conman) GetName() string {
 }
 
 func (g *Conman) GetGroups() []string {
-	return []string{"conman"}
+	return []string{""}
 }
 
-func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) ([]byte, error) {
+func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {
 	var (
-		params                                  = generator.GetParams(opts...)
-		client                                  = generator.GetClient(params)
-		template                                = params["template"].(string) // required param
-		path                                    = config.TemplatePaths[template]
-		eps      []configurator.RedfishEndpoint = nil
-		err      error                          = nil
+		params                                   = generator.GetParams(opts...)
+		client                                   = generator.GetClient(params)
+		targetKey                                = params["targets"].(string) // required param
+		target                                   = config.Targets[targetKey]
+		eps       []configurator.RedfishEndpoint = nil
+		err       error                          = nil
 		// serverOpts = ""
 		// globalOpts = ""
 		consoles = ""
@@ -52,10 +52,10 @@ func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) ([]b
 	consoles += "# ====================================================================="
 
 	// apply template substitutions and return output as byte array
-	return generator.ApplyTemplate(path, generator.Mappings{
+	return generator.ApplyTemplates(generator.Mappings{
 		"server_opts": "",
 		"global_opts": "",
-	})
+	}, target.Templates...)
 }
 
 var Generator Conman
