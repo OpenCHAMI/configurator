@@ -85,18 +85,19 @@ var generateCmd = &cobra.Command{
 			}
 
 			outputMap := util.ConvertMapOutput(outputBytes)
-			// b, err := json.Marshal(outputMap)
-			// if err != nil {
-			// 	fmt.Printf("failed to marshal output: %v\n", err)
-			// 	os.Exit(1)
-			// }
 			if outputPath == "" {
 				// write only to stdout by default
-				for _, contents := range outputMap {
-					fmt.Printf("%s\n", string(contents))
+				if len(outputMap) == 1 {
+					for _, contents := range outputMap {
+						fmt.Printf("%s\n", string(contents))
+					}
+				} else {
+					for path, contents := range outputMap {
+						fmt.Printf("-- file: %s, size: %d\n%s\n", path, len(contents), string(contents))
+					}
 				}
 			} else if outputPath != "" && targetCount == 1 && len(outputMap) == 1 {
-				// write just a single file using template name
+				// write just a single file using provided name
 				for _, contents := range outputBytes {
 					// FIXME: fix output paths to not overwrite each other with multiple templates
 					err := os.WriteFile(outputPath, contents, 0o644)
@@ -104,16 +105,18 @@ var generateCmd = &cobra.Command{
 						fmt.Printf("failed to write config to file: %v", err)
 						os.Exit(1)
 					}
+					fmt.Printf("wrote file to '%s'\n", outputPath)
 				}
-			} else if outputPath != "" && targetCount > 1 {
+			} else if outputPath != "" && targetCount > 1 || len(outputMap) > 1 {
 				// write multiple files in directory using template name
 				for _, contents := range outputBytes {
-					// FIXME: fix output paths to not overwrite each other with multiple templates
-					err := os.WriteFile(fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), target, "conf"), contents, 0o644)
+					cleanPath := fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), target, "conf")
+					err := os.WriteFile(cleanPath, contents, 0o644)
 					if err != nil {
 						fmt.Printf("failed to write config to file: %v", err)
 						os.Exit(1)
 					}
+					fmt.Printf("wrote file to '%s'\n", cleanPath)
 				}
 			}
 		}
