@@ -109,7 +109,7 @@ var generateCmd = &cobra.Command{
 				// write multiple files in directory using template name
 				for _, contents := range outputBytes {
 					// FIXME: fix output paths to not overwrite each other with multiple templates
-					err := os.WriteFile(fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), target, ".conf"), contents, 0o644)
+					err := os.WriteFile(fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), target, "conf"), contents, 0o644)
 					if err != nil {
 						fmt.Printf("failed to write config to file: %v", err)
 						os.Exit(1)
