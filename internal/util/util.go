@@ -26,7 +26,7 @@ func MakeRequest(url string, httpMethod string, body []byte, headers map[string]
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not create new HTTP request: %v", err)
 	}
-	req.Header.Add("User-Agent", "magellan")
+	req.Header.Add("User-Agent", "configurator")
 	for k, v := range headers {
 		req.Header.Add(k, v)
 	}
@@ -40,4 +40,12 @@ func MakeRequest(url string, httpMethod string, body []byte, headers map[string]
 		return nil, nil, fmt.Errorf("could not read response body: %v", err)
 	}
 	return res, b, err
+}
+
+func ConvertMapOutput(m map[string][]byte) map[string]string {
+	n := make(map[string]string, len(m))
+	for k, v := range m {
+		n[k] = string(v)
+	}
+	return n
 }
