@@ -186,11 +186,12 @@ func Generate(config *configurator.Config, params Params) (Files, error) {
 	// load generator plugins to generate configs or to print
 	var (
 		generators = make(map[string]Generator)
-		client     = configurator.SmdClient{
-			Host:        config.SmdClient.Host,
-			Port:        config.SmdClient.Port,
-			AccessToken: config.AccessToken,
-		}
+		client     = configurator.NewSmdClient(
+			configurator.WithHost(config.SmdClient.Host),
+			configurator.WithPort(config.SmdClient.Port),
+			configurator.WithAccessToken(config.AccessToken),
+			configurator.WithSecureTLS(config.CertPath),
+		)
 	)
 
 	// load all plugins from params

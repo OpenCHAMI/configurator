@@ -17,6 +17,7 @@ import (
 var (
 	tokenFetchRetries int
 	pluginPaths       []string
+	cacertPath        string
 )
 
 var generateCmd = &cobra.Command{
@@ -118,6 +119,7 @@ func init() {
 	generateCmd.Flags().StringSliceVar(&targets, "target", []string{}, "set the target configs to make")
 	generateCmd.Flags().StringSliceVar(&pluginPaths, "plugins", []string{}, "set the generator plugins directory path")
 	generateCmd.Flags().StringVarP(&outputPath, "output", "o", "", "set the output path for config targets")
+	generateCmd.Flags().StringVar(&cacertPath, "ca-cert", "", "path to CA cert. (defaults to system CAs)")
 	generateCmd.Flags().IntVar(&tokenFetchRetries, "fetch-retries", 5, "set the number of retries to fetch an access token")
 
 	rootCmd.AddCommand(generateCmd)

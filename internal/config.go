@@ -34,6 +34,7 @@ type Config struct {
 	AccessToken string            `yaml:"access-token"`
 	Targets     map[string]Target `yaml:"targets"`
 	PluginDirs  []string          `yaml:"plugins"`
+	CertPath    string            `yaml:"ca-cert"`
 	Options     Options           `yaml:"options"`
 }
 

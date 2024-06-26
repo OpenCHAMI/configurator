@@ -2,10 +2,15 @@ package configurator
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/OpenCHAMI/configurator/internal/util"
 )
@@ -19,6 +24,61 @@ type SmdClient struct {
 
 type Params = map[string]any
 type Option func(Params)
+type ClientOption func(*SmdClient)
+
+func NewSmdClient(opts ...ClientOption) SmdClient {
+	client := SmdClient{}
+	for _, opt := range opts {
+		opt(&client)
+	}
+	return client
+}
+
+func WithHost(host string) ClientOption {
+	return func(c *SmdClient) {
+		c.Host = host
+	}
+}
+
+func WithPort(port int) ClientOption {
+	return func(c *SmdClient) {
+		c.Port = port
+	}
+}
+
+func WithAccessToken(token string) ClientOption {
+	return func(c *SmdClient) {
+		c.AccessToken = token
+	}
+}
+
+func WithCertPool(certPool *x509.CertPool) ClientOption {
+	return func(c *SmdClient) {
+		c.Client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:            certPool,
+				InsecureSkipVerify: true,
+			},
+			DisableKeepAlives: true,
+			Dial: (&net.Dialer{
+				Timeout:   120 * time.Second,
+				KeepAlive: 120 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   120 * time.Second,
+			ResponseHeaderTimeout: 120 * time.Second,
+		}
+	}
+}
+
+func WithSecureTLS(certPath string) ClientOption {
+	if certPath == "" {
+		return func(sc *SmdClient) {}
+	}
+	cacert, _ := os.ReadFile(certPath)
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(cacert)
+	return WithCertPool(certPool)
+}
 
 func WithVerbosity() Option {
 	return func(p util.Params) {
