@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"path/filepath"
 	"plugin"
 
 	configurator "github.com/OpenCHAMI/configurator/internal"
@@ -15,10 +16,10 @@ import (
 )
 
 type Mappings = map[string]any
+type Files = map[string][]byte
 type Generator interface {
 	GetName() string
-	GetGroups() []string
-	Generate(config *configurator.Config, opts ...util.Option) ([]byte, error)
+	Generate(config *configurator.Config, opts ...util.Option) (Files, error)
 }
 
 type Params struct {
@@ -34,14 +35,16 @@ func LoadPlugin(path string) (Generator, error) {
 		return nil, fmt.Errorf("failed to load plugin: %v", err)
 	}
 
+	// load the "Generator" symbol from plugin
 	symbol, err := p.Lookup("Generator")
 	if err != nil {
-		return nil, fmt.Errorf("failed to look up symbol: %v", err)
+		return nil, fmt.Errorf("failed to look up symbol at path '%s': %v", path, err)
 	}
 
+	// assert that the plugin loaded has a valid generator
 	gen, ok := symbol.(Generator)
 	if !ok {
-		return nil, fmt.Errorf("failed to load the correct symbol type")
+		return nil, fmt.Errorf("failed to load the correct symbol type at path '%s'", path)
 	}
 	return gen, nil
 }
@@ -90,10 +93,10 @@ func LoadPlugins(dirpath string, opts ...util.Option) (map[string]Generator, err
 	return gens, nil
 }
 
-func WithTemplate(_template string) util.Option {
+func WithTarget(target string) util.Option {
 	return func(p util.Params) {
 		if p != nil {
-			p["template"] = _template
+			p["target"] = target
 		}
 	}
 }
@@ -123,6 +126,10 @@ func GetClient(params util.Params) *configurator.SmdClient {
 	return util.Get[configurator.SmdClient](params, "client")
 }
 
+func GetTarget(config *configurator.Config, key string) configurator.Target {
+	return config.Targets[key]
+}
+
 func GetParams(opts ...util.Option) util.Params {
 	params := util.Params{}
 	for _, opt := range opts {
@@ -131,25 +138,51 @@ func GetParams(opts ...util.Option) util.Params {
 	return params
 }
 
-func ApplyTemplate(path string, mappings map[string]any) ([]byte, error) {
-	data := exec.NewContext(mappings)
+func ApplyTemplates(mappings map[string]any, paths ...string) (Files, error) {
+	var (
+		data    = exec.NewContext(mappings)
+		outputs = Files{}
+	)
 
-	// load jinja template from file
-	t, err := gonja.FromFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read template from file: %v", err)
+	for _, path := range paths {
+		// load jinja template from file
+		t, err := gonja.FromFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read template from file: %v", err)
+		}
+
+		// execute/render jinja template
+		b := bytes.Buffer{}
+		if err = t.Execute(&b, data); err != nil {
+			return nil, fmt.Errorf("failed to execute: %v", err)
+		}
+		outputs[path] = b.Bytes()
 	}
 
-	// execute/render jinja template
-	b := bytes.Buffer{}
-	if err = t.Execute(&b, data); err != nil {
-		return nil, fmt.Errorf("failed to execute: %v", err)
-	}
-
-	return b.Bytes(), nil
+	return outputs, nil
 }
 
-func Generate(config *configurator.Config, params Params) ([]byte, error) {
+func LoadFiles(paths ...string) (Files, error) {
+	var outputs = Files{}
+	for _, path := range paths {
+		expandedPaths, err := filepath.Glob(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to expand path: %v", err)
+		}
+		for _, expandedPath := range expandedPaths {
+			b, err := os.ReadFile(expandedPath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read file: %v", err)
+			}
+
+			outputs[path] = b
+		}
+	}
+
+	return outputs, nil
+}
+
+func Generate(config *configurator.Config, params Params) (Files, error) {
 	// load generator plugins to generate configs or to print
 	var (
 		generators = make(map[string]Generator)
@@ -194,7 +227,7 @@ func Generate(config *configurator.Config, params Params) ([]byte, error) {
 		}
 		return gen.Generate(
 			config,
-			WithTemplate(gen.GetName()),
+			WithTarget(gen.GetName()),
 			WithClient(client),
 		)
 	}

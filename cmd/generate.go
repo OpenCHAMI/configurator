@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/OpenCHAMI/configurator/internal/generator"
+	"github.com/OpenCHAMI/configurator/internal/util"
 	"github.com/spf13/cobra"
 )
 
@@ -70,29 +71,42 @@ var generateCmd = &cobra.Command{
 				Target:      target,
 				Verbose:     verbose,
 			}
-			output, err := generator.Generate(&config, params)
+			outputBytes, err := generator.Generate(&config, params)
 			if err != nil {
 				fmt.Printf("failed to generate config: %v\n", err)
 				os.Exit(1)
 			}
 
-			// write config output if no specific targetPath is set
+			outputMap := util.ConvertMapOutput(outputBytes)
+			// b, err := json.Marshal(outputMap)
+			// if err != nil {
+			// 	fmt.Printf("failed to marshal output: %v\n", err)
+			// 	os.Exit(1)
+			// }
 			if outputPath == "" {
-				// write only to stdout
-				fmt.Printf("%s\n", string(output))
-			} else if outputPath != "" && targetCount == 1 {
+				// write only to stdout by default
+				for _, contents := range outputMap {
+					fmt.Printf("%s\n", string(contents))
+				}
+			} else if outputPath != "" && targetCount == 1 && len(outputMap) == 1 {
 				// write just a single file using template name
-				err := os.WriteFile(outputPath, output, 0o644)
-				if err != nil {
-					fmt.Printf("failed to write config to file: %v", err)
-					os.Exit(1)
+				for _, contents := range outputBytes {
+					// FIXME: fix output paths to not overwrite each other with multiple templates
+					err := os.WriteFile(outputPath, contents, 0o644)
+					if err != nil {
+						fmt.Printf("failed to write config to file: %v", err)
+						os.Exit(1)
+					}
 				}
 			} else if outputPath != "" && targetCount > 1 {
 				// write multiple files in directory using template name
-				err := os.WriteFile(fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), target, ".conf"), output, 0o644)
-				if err != nil {
-					fmt.Printf("failed to write config to file: %v", err)
-					os.Exit(1)
+				for _, contents := range outputBytes {
+					// FIXME: fix output paths to not overwrite each other with multiple templates
+					err := os.WriteFile(fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), target, ".conf"), contents, 0o644)
+					if err != nil {
+						fmt.Printf("failed to write config to file: %v", err)
+						os.Exit(1)
+					}
 				}
 			}
 		}

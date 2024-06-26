@@ -10,6 +10,12 @@ import (
 
 type Options struct{}
 
+type Target struct {
+	Templates  []string `yaml:"templates,omitempty"`
+	FilePaths  []string `yaml:"files,omitempty"`
+	RunTargets []string `yaml:"targets,omitempty"`
+}
+
 type Jwks struct {
 	Uri     string `yaml:"uri"`
 	Retries int    `yaml:"retries"`
@@ -22,13 +28,13 @@ type Server struct {
 }
 
 type Config struct {
-	Version       string            `yaml:"version"`
-	Server        Server            `yaml:"server"`
-	SmdClient     SmdClient         `yaml:"smd"`
-	AccessToken   string            `yaml:"access-token"`
-	TemplatePaths map[string]string `yaml:"templates"`
-	PluginDirs    []string          `yaml:"plugins"`
-	Options       Options           `yaml:"options"`
+	Version     string            `yaml:"version"`
+	Server      Server            `yaml:"server"`
+	SmdClient   SmdClient         `yaml:"smd"`
+	AccessToken string            `yaml:"access-token"`
+	Targets     map[string]Target `yaml:"targets"`
+	PluginDirs  []string          `yaml:"plugins"`
+	Options     Options           `yaml:"options"`
 }
 
 func NewConfig() Config {
@@ -38,13 +44,21 @@ func NewConfig() Config {
 			Host: "http://127.0.0.1",
 			Port: 27779,
 		},
-		TemplatePaths: map[string]string{
-			"dnsmasq":  "templates/dnsmasq.jinja",
-			"syslog":   "templates/syslog.jinja",
-			"ansible":  "templates/ansible.jinja",
-			"powerman": "templates/powerman.jinja",
-			"conman":   "templates/conman.jinja",
+		Targets: map[string]Target{
+			"dnsmasq": Target{
+				Templates: []string{},
+			},
+			"conman": Target{
+				Templates: []string{},
+			},
+			"warewulf": Target{
+				Templates: []string{
+					"templates/warewulf/defaults/node.jinja",
+					"templates/warewulf/defaults/provision.jinja",
+				},
+			},
 		},
+
 		PluginDirs: []string{},
 		Server: Server{
 			Host: "127.0.0.1",
