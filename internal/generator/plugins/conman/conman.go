@@ -14,6 +14,14 @@ func (g *Conman) GetName() string {
 	return "conman"
 }
 
+func (g *Conman) GetVersion() string {
+	return util.GitCommit()
+}
+
+func (g *Conman) GetDescription() string {
+	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
+}
+
 func (g *Conman) GetGroups() []string {
 	return []string{""}
 }

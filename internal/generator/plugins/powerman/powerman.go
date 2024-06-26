@@ -13,8 +13,12 @@ func (g *Powerman) GetName() string {
 	return "powerman"
 }
 
-func (g *Powerman) GetGroups() []string {
-	return []string{"powerman"}
+func (g *Powerman) GetVersion() string {
+	return util.GitCommit()
+}
+
+func (g *Powerman) GetDescription() string {
+	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
 func (g *Powerman) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {

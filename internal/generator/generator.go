@@ -19,6 +19,8 @@ type Mappings = map[string]any
 type Files = map[string][]byte
 type Generator interface {
 	GetName() string
+	GetVersion() string
+	GetDescription() string
 	Generate(config *configurator.Config, opts ...util.Option) (Files, error)
 }
 

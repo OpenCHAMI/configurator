@@ -15,6 +15,14 @@ func (g *DnsMasq) GetName() string {
 	return "dnsmasq"
 }
 
+func (g *DnsMasq) GetVersion() string {
+	return util.GitCommit()
+}
+
+func (g *DnsMasq) GetDescription() string {
+	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
+}
+
 func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {
 	// make sure we have a valid config first
 	if config == nil {
@@ -50,7 +58,7 @@ func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (ma
 	// print message if verbose param found
 	if verbose, ok := params["verbose"].(bool); ok {
 		if verbose {
-			fmt.Printf("template: \n%s\n ethernet interfaces found: %v\n", strings.Join(target.Templates, "\n\t"), len(eths))
+			fmt.Printf("template: \n%s\nethernet interfaces found: %v\n", strings.Join(target.Templates, "\n\t"), len(eths))
 		}
 	}
 

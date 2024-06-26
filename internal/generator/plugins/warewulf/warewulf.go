@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"maps"
+	"strings"
 
 	configurator "github.com/OpenCHAMI/configurator/internal"
 	"github.com/OpenCHAMI/configurator/internal/generator"
@@ -15,8 +16,12 @@ func (g *Warewulf) GetName() string {
 	return "warewulf"
 }
 
-func (g *Warewulf) GetGroups() []string {
-	return []string{"warewulf"}
+func (g *Warewulf) GetVersion() string {
+	return util.GitCommit()
+}
+
+func (g *Warewulf) GetDescription() string {
+	return "Configurator generator plugin for 'warewulf' config files."
 }
 
 func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (generator.Files, error) {
@@ -31,6 +36,27 @@ func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (g
 	// check if our client is included and is valid
 	if client == nil {
 		return nil, fmt.Errorf("invalid client (client is nil)")
+	}
+
+	// if we have a client, try making the request for the ethernet interfaces
+	eths, err := client.FetchEthernetInterfaces(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ethernet interfaces with client: %v", err)
+	}
+
+	// check if we have the required params first
+	if eths == nil {
+		return nil, fmt.Errorf("invalid ethernet interfaces (variable is nil)")
+	}
+	if len(eths) <= 0 {
+		return nil, fmt.Errorf("no ethernet interfaces found")
+	}
+
+	// print message if verbose param found
+	if verbose, ok := params["verbose"].(bool); ok {
+		if verbose {
+			fmt.Printf("template: \n%s\n ethernet interfaces found: %v\n", strings.Join(target.Templates, "\n\t"), len(eths))
+		}
 	}
 
 	// fetch redfish endpoints and handle errors
