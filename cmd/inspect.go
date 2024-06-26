@@ -44,7 +44,6 @@ var inspectCmd = &cobra.Command{
 		}
 
 		// print all generator information
-		const WIDTH = 40
 		if len(generators) > 0 {
 			o := ""
 			for _, g := range generators {
