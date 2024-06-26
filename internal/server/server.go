@@ -4,6 +4,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -85,42 +86,29 @@ func (s *Server) Serve(config *configurator.Config) error {
 		}
 		r.HandleFunc("/generate", func(w http.ResponseWriter, r *http.Request) {
 			s.GeneratorParams.Target = r.URL.Query().Get("target")
-			output, err := generator.Generate(config, s.GeneratorParams)
+			outputs, err := generator.Generate(config, s.GeneratorParams)
 			if err != nil {
-				WriteError(w, "failed to generate config: %v\n", err)
+				WriteError(w, "failed to generate config: %v", err)
 				return
 			}
 
-			_, err = w.Write(output)
+			// convert byte arrays to string
+			tmp := map[string]string{}
+			for path, output := range outputs {
+				tmp[path] = string(output)
+			}
+
+			// marshal output to JSON then send
+			b, err := json.Marshal(tmp)
+			if err != nil {
+				WriteError(w, "failed to marshal output: %v", err)
+				return
+			}
+			_, err = w.Write(b)
 			if err != nil {
 				WriteError(w, "failed to write response: %v", err)
 				return
 			}
-
-			// NOTE: we probably don't want to hardcode the types, but should do for now
-			// if _type == "dhcp" {
-			// 	// fetch eths from SMD
-			// 	eths, err := client.FetchEthernetInterfaces()
-			// 	if err != nil {
-			// 		logrus.Errorf("failed to fetch DHCP metadata: %v\n", err)
-			// 		w.Write([]byte("An error has occurred"))
-			// 		return
-			// 	}
-			// 	if len(eths) <= 0 {
-			// 		logrus.Warnf("no ethernet interfaces found")
-			// 		w.Write([]byte("no ethernet interfaces found"))
-			// 		return
-			// 	}
-			// 	// generate a new config from that data
-
-			// 	// b, err := g.GenerateDHCP(config, eths)
-			// 	if err != nil {
-			// 		logrus.Errorf("failed to generate DHCP: %v", err)
-			// 		w.Write([]byte("An error has occurred."))
-			// 		return
-			// 	}
-			// 	w.Write(b)
-			// }
 		})
 		r.HandleFunc("/templates", func(w http.ResponseWriter, r *http.Request) {
 			// TODO: handle GET request
