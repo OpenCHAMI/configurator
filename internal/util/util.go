@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 func PathExists(path string) (bool, error) {
@@ -48,4 +50,14 @@ func ConvertMapOutput(m map[string][]byte) map[string]string {
 		n[k] = string(v)
 	}
 	return n
+}
+
+func GitCommit() string {
+	c := exec.Command("git", "rev-parse", "HEAD")
+	stdout, err := c.Output()
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimRight(string(stdout), "\n")
 }
