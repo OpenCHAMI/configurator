@@ -172,6 +172,14 @@ func LoadFiles(paths ...string) (Files, error) {
 			return nil, fmt.Errorf("failed to expand path: %v", err)
 		}
 		for _, expandedPath := range expandedPaths {
+			info, err := os.Stat(expandedPath)
+			if err != nil {
+				fmt.Println(err)
+				return nil, fmt.Errorf("failed to stat file or directory: %v", err)
+			}
+			if info.IsDir() {
+				continue
+			}
 			b, err := os.ReadFile(expandedPath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read file: %v", err)
