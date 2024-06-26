@@ -50,6 +50,12 @@ var generateCmd = &cobra.Command{
 			}
 		}
 
+		// use cert path from cobra if empty
+		// TODO: this needs to be checked for the correct desired behavior
+		if config.CertPath == "" {
+			config.CertPath = certPath
+		}
+
 		// use config plugins if none supplied via CLI
 		if len(pluginPaths) <= 0 {
 			pluginPaths = append(pluginPaths, config.PluginDirs...)
