@@ -71,11 +71,7 @@ func (g *MyGenerator) GetName() string {
   return "my-generator"
 }
 
-func (g *MyGenerator) GetGroups() []string {
-  return []string{ "my-generator" }
-}
-
-func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option) ([]byte, error) {
+func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {
   // do config generation stuff here...
   var (
     params = generator.GetParams(opts...)
@@ -103,7 +99,7 @@ Finally, build the plugin and put it somewhere specified by `plugins` in your co
 go build -buildmode=plugin -o lib/mygenerator.so path/to/mygenerator.go
 ```
 
-Now your plugin should be available to use with the `configurator` main driver.
+Now your plugin should be available to use with the `configurator` main driver. If you get an error about not loading the correct symbol type, make sure that you generator function definitions match the `Generator` interface exactly.
 
 ## Configuration
 
