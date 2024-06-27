@@ -94,7 +94,7 @@ var generateCmd = &cobra.Command{
 				}
 			} else if outputPath != "" && targetCount == 1 && templateCount == 1 {
 				// write just a single file using provided name
-				for path, contents := range outputMap {
+				for _, contents := range outputBytes {
 					err := os.WriteFile(outputPath, contents, 0o644)
 					if err != nil {
 						fmt.Printf("failed to write config to file: %v", err)
@@ -111,7 +111,7 @@ var generateCmd = &cobra.Command{
 				}
 				for path, contents := range outputBytes {
 					filename := filepath.Base(path)
-					cleanPath := fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), filename)
+					cleanPath := fmt.Sprintf("%s/%s", filepath.Clean(outputPath), filename)
 					err := os.WriteFile(cleanPath, contents, 0o644)
 					if err != nil {
 						fmt.Printf("failed to write config to file: %v", err)
