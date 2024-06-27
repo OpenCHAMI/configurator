@@ -61,3 +61,21 @@ func GitCommit() string {
 
 	return strings.TrimRight(string(stdout), "\n")
 }
+
+// NOTE: would it be better to use slices.DeleteFunc instead
+func RemoveIndex[T comparable](s []T, index int) []T {
+	ret := make([]T, 0)
+	ret = append(ret, s[:index]...)
+	return append(ret, s[index+1:]...)
+}
+
+func CopyIf[T comparable](s []T, condition func(t T) bool) []T {
+	var f = make([]T, 0)
+	for _, e := range s {
+		if condition(e) {
+			f = append(f, e)
+		}
+	}
+
+	return f
+}

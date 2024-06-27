@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	configurator "github.com/OpenCHAMI/configurator/internal"
 	"github.com/OpenCHAMI/configurator/internal/generator"
 	"github.com/OpenCHAMI/configurator/internal/util"
 	"github.com/spf13/cobra"
@@ -60,69 +61,79 @@ var generateCmd = &cobra.Command{
 			fmt.Printf("%v\n", string(b))
 		}
 
-		// generate config with each supplied target
-		for _, target := range targets {
-			params := generator.Params{
-				Args:        args,
-				PluginPaths: pluginPaths,
-				Target:      target,
-				Verbose:     verbose,
-			}
-			outputBytes, err := generator.Generate(&config, params)
-			if err != nil {
-				fmt.Printf("failed to generate config: %v\n", err)
-				os.Exit(1)
-			}
+		RunTargets(targets...)
 
-			outputMap := util.ConvertMapOutput(outputBytes)
+	},
+}
 
-			// if we have more than one target and output is set, create configs in directory
-			var (
-				targetCount   = len(targets)
-				templateCount = len(outputMap)
-			)
-			if outputPath == "" {
-				// write only to stdout by default
-				if len(outputMap) == 1 {
-					for _, contents := range outputMap {
-						fmt.Printf("%s\n", string(contents))
-					}
-				} else {
-					for path, contents := range outputMap {
-						fmt.Printf("-- file: %s, size: %d B\n%s\n", path, len(contents), string(contents))
-					}
+func RunTargets(config *configurator.Config, targets ...string) {
+	// generate config with each supplied target
+	for _, target := range targets {
+		params := generator.Params{
+			Args:        args,
+			PluginPaths: pluginPaths,
+			Target:      target,
+			Verbose:     verbose,
+		}
+		outputBytes, err := generator.Generate(&config, params)
+		if err != nil {
+			fmt.Printf("failed to generate config: %v\n", err)
+			os.Exit(1)
+		}
+
+		outputMap := util.ConvertMapOutput(outputBytes)
+
+		// if we have more than one target and output is set, create configs in directory
+		var (
+			targetCount   = len(targets)
+			templateCount = len(outputMap)
+		)
+		if outputPath == "" {
+			// write only to stdout by default
+			if len(outputMap) == 1 {
+				for _, contents := range outputMap {
+					fmt.Printf("%s\n", string(contents))
 				}
-			} else if outputPath != "" && targetCount == 1 && templateCount == 1 {
-				// write just a single file using provided name
-				for _, contents := range outputBytes {
-					err := os.WriteFile(outputPath, contents, 0o644)
-					if err != nil {
-						fmt.Printf("failed to write config to file: %v", err)
-						os.Exit(1)
-					}
-					fmt.Printf("wrote file to '%s'\n", outputPath)
+			} else {
+				for path, contents := range outputMap {
+					fmt.Printf("-- file: %s, size: %d B\n%s\n", path, len(contents), string(contents))
 				}
-			} else if outputPath != "" && targetCount > 1 || templateCount > 1 {
-				// write multiple files in directory using template name
-				err := os.MkdirAll(filepath.Clean(outputPath), 0o755)
+			}
+		} else if outputPath != "" && targetCount == 1 && templateCount == 1 {
+			// write just a single file using provided name
+			for _, contents := range outputBytes {
+				err := os.WriteFile(outputPath, contents, 0o644)
 				if err != nil {
-					fmt.Printf("failed to make output directory: %v", err)
+					fmt.Printf("failed to write config to file: %v", err)
 					os.Exit(1)
 				}
-				for path, contents := range outputBytes {
-					filename := filepath.Base(path)
-					cleanPath := fmt.Sprintf("%s/%s", filepath.Clean(outputPath), filename)
-					err := os.WriteFile(cleanPath, contents, 0o644)
-					if err != nil {
-						fmt.Printf("failed to write config to file: %v", err)
-						os.Exit(1)
-					}
-					fmt.Printf("wrote file to '%s'\n", cleanPath)
+				fmt.Printf("wrote file to '%s'\n", outputPath)
+			}
+		} else if outputPath != "" && targetCount > 1 || templateCount > 1 {
+			// write multiple files in directory using template name
+			err := os.MkdirAll(filepath.Clean(outputPath), 0o755)
+			if err != nil {
+				fmt.Printf("failed to make output directory: %v", err)
+				os.Exit(1)
+			}
+			for path, contents := range outputBytes {
+				filename := filepath.Base(path)
+				cleanPath := fmt.Sprintf("%s/%s", filepath.Clean(outputPath), filename)
+				err := os.WriteFile(cleanPath, contents, 0o644)
+				if err != nil {
+					fmt.Printf("failed to write config to file: %v", err)
+					os.Exit(1)
 				}
+				fmt.Printf("wrote file to '%s'\n", cleanPath)
 			}
 		}
 
-	},
+		// remove any targets that are the same as current to prevent infinite loop
+		nextTargets := util.CopyIf(config.Targets[targets].Targets, func(t T) bool { return t != target })
+
+		// ...then, run any other targets that the current target has
+		RunTargets(config, nextTargets...)
+	}
 }
 
 func init() {
