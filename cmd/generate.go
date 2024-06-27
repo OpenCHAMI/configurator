@@ -24,16 +24,6 @@ var generateCmd = &cobra.Command{
 	Use:   "generate",
 	Short: "Generate a config file from state management",
 	Run: func(cmd *cobra.Command, args []string) {
-		// if we have more than one target and output is set, create configs in directory
-		targetCount := len(targets)
-		if outputPath != "" && targetCount > 1 {
-			err := os.MkdirAll(outputPath, 0o755)
-			if err != nil {
-				fmt.Printf("failed to make output directory: %v", err)
-				os.Exit(1)
-			}
-		}
-
 		// make sure that we have a token present before trying to make request
 		if config.AccessToken == "" {
 			// TODO: make request to check if request will need token
@@ -85,6 +75,12 @@ var generateCmd = &cobra.Command{
 			}
 
 			outputMap := util.ConvertMapOutput(outputBytes)
+
+			// if we have more than one target and output is set, create configs in directory
+			var (
+				targetCount   = len(targets)
+				templateCount = len(outputMap)
+			)
 			if outputPath == "" {
 				// write only to stdout by default
 				if len(outputMap) == 1 {
@@ -93,13 +89,12 @@ var generateCmd = &cobra.Command{
 					}
 				} else {
 					for path, contents := range outputMap {
-						fmt.Printf("-- file: %s, size: %d\n%s\n", path, len(contents), string(contents))
+						fmt.Printf("-- file: %s, size: %d B\n%s\n", path, len(contents), string(contents))
 					}
 				}
-			} else if outputPath != "" && targetCount == 1 && len(outputMap) == 1 {
+			} else if outputPath != "" && targetCount == 1 && templateCount == 1 {
 				// write just a single file using provided name
-				for _, contents := range outputBytes {
-					// FIXME: fix output paths to not overwrite each other with multiple templates
+				for path, contents := range outputMap {
 					err := os.WriteFile(outputPath, contents, 0o644)
 					if err != nil {
 						fmt.Printf("failed to write config to file: %v", err)
@@ -107,10 +102,16 @@ var generateCmd = &cobra.Command{
 					}
 					fmt.Printf("wrote file to '%s'\n", outputPath)
 				}
-			} else if outputPath != "" && targetCount > 1 || len(outputMap) > 1 {
+			} else if outputPath != "" && targetCount > 1 || templateCount > 1 {
 				// write multiple files in directory using template name
-				for _, contents := range outputBytes {
-					cleanPath := fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), target, "conf")
+				err := os.MkdirAll(filepath.Clean(outputPath), 0o755)
+				if err != nil {
+					fmt.Printf("failed to make output directory: %v", err)
+					os.Exit(1)
+				}
+				for path, contents := range outputBytes {
+					filename := filepath.Base(path)
+					cleanPath := fmt.Sprintf("%s/%s.%s", filepath.Clean(outputPath), filename)
 					err := os.WriteFile(cleanPath, contents, 0o644)
 					if err != nil {
 						fmt.Printf("failed to write config to file: %v", err)
