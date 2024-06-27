@@ -177,6 +177,7 @@ func LoadFiles(paths ...string) (Files, error) {
 				fmt.Println(err)
 				return nil, fmt.Errorf("failed to stat file or directory: %v", err)
 			}
+			// skip any directories found
 			if info.IsDir() {
 				continue
 			}
@@ -185,7 +186,7 @@ func LoadFiles(paths ...string) (Files, error) {
 				return nil, fmt.Errorf("failed to read file: %v", err)
 			}
 
-			outputs[path] = b
+			outputs[expandedPath] = b
 		}
 	}
 
