@@ -68,12 +68,17 @@ func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (g
 		return nil, fmt.Errorf("no redfish endpoints found")
 	}
 
+	// format output for template substitution
+	nodeEntries := ""
+
 	// load files and templates and copy to outputs
 	files, err := generator.LoadFiles(target.FilePaths...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load files: %v", err)
 	}
-	templates, err := generator.ApplyTemplates(generator.Mappings{}, target.Templates...)
+	templates, err := generator.ApplyTemplates(generator.Mappings{
+		"node_entries": nodeEntries,
+	}, target.Templates...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load templates: %v", err)
 	}
