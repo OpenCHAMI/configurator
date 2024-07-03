@@ -41,12 +41,12 @@ The tool can also run as a service to generate files for clients:
 Once the server is up and listening for HTTP requests, you can try making a request to it with `curl` or `configurator fetch`. Both commands below are essentially equivalent:
 
 ```bash
-curl http://127.0.0.1:3334/generate?target=dnsmasq
+curl http://127.0.0.1:3334/generate?target=dnsmasq -H "Authorization: Bearer $ACCESS_TOKEN"
 # ...or...
-./configurator fetch --target dnsmasq --host http://127.0.0.1 --port 3334
+./configurator fetch --target dnsmasq --host http://127.0.0.1 --port 3334 
 ```
 
-This will do the same thing as the `generate` subcommand, but remotely.
+This will do the same thing as the `generate` subcommand, but remotely. The access token is only required if the `CONFIGURATOR_JWKS_URL` environment variable is set. The `ACCESS_TOKEN` environment variable passed to `curl` and it's corresponding CLI argument both expects a token as a JWT.
 
 ### Creating Generator Plugins
 
@@ -118,31 +118,34 @@ Now your plugin should be available to use with the `configurator` main driver. 
 Here is an example config file to start using configurator:
 
 ```yaml
-server:                               # server settings when using as service
+server:         # Server-related parameters when using as service
   host: 127.0.0.1
   port: 3334
-  jwks:                               # set URL for JWKS to enable auth
+  jwks:         # Set the JWKS uri to protect /generate route
     uri: ""
     retries: 5
-smd:                                  # settings for SMD service
+smd: .          # SMD-related parameters
   host: http://127.0.0.1
   port: 27779
-templates:                            # template mappings to generator plugins (by name)
-  dnsmasq: templates/dnsmasq.jinja
-  coredhcp: templates/coredhcp.jinja
-  syslog: templates/syslog.jinja
-  ansible: templates/ansible.jinja
-  powerman: templates/powerman.jinja
-  conman: templates/conman.jinja
-groups:                               # (WIP) setting to allow creating configs by groups
-  warewulf:
-    - dnsmasq
-    - syslog
-    - ansible
-    - powerman
-    - conman
-plugins:                              # path to plugin directories (may change to include files as well)
+plugins:        # path to plugin directories
   - "lib/"
+targets:        # targets to call with --target flag
+  dnsmasq:
+    templates:
+      - templates/dnsmasq.jinja
+  warewulf:
+    templates:  # files using Jinja templating
+      - templates/warewulf/vnfs/dhcpd-template.jinja
+      - templates/warewulf/vnfs/dnsmasq-template.jinja
+    files:      # files to be copied without templating
+      - templates/warewulf/defaults/provision.jinja
+      - templates/warewulf/defaults/node.jinja
+      - templates/warewulf/filesystem/examples/*
+      - templates/warewulf/vnfs/*
+      - templates/warewulf/bootstrap.jinja
+      - templates/warewulf/database.jinja
+    targets:    # additional targets to run 
+      - dnsmasq
 ```
 
 The `server` section sets the properties for running the `configurator` tool as a service and is not required if you're only using the CLI. Also note that the `jwks-uri` parameter is only needs for protecting endpoints. If it is not set, then the API is entirely public. The `smd` section tells the `configurator` tool where to find SMD to pull state management data used by the internal client. The `templates` section is where the paths are mapped to each generator plugin by its name (see the [`Creating Generator Plugins`](#creating-generator-plugins) section for details). The `plugins` is a list of paths to load generator plugins.
