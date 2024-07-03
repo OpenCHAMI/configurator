@@ -55,4 +55,14 @@ func initConfig() {
 	} else {
 		config = configurator.NewConfig()
 	}
+
+	//
+	// set environment variables to override config values
+	//
+
+	// set the JWKS url if we find the CONFIGURATOR_JWKS_URL environment variable
+	jwksUrl := os.Getenv("CONFIGURATOR_JWKS_URL")
+	if jwksUrl != "" {
+		config.Server.Jwks.Uri = jwksUrl
+	}
 }
