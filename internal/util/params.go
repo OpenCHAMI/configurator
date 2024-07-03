@@ -35,3 +35,20 @@ func AssertOptionsExist(params Params, opts ...string) []string {
 	}
 	return foundKeys
 }
+
+func WithDefault[T any](v T) Option {
+	return func(p Params) {
+		p["default"] = v
+	}
+}
+
+// Syntactic sugar generic function to get parameter from util.Params.
+func Get[T any](params Params, key string, opts ...Option) *T {
+	if v, ok := params[key].(T); ok {
+		return &v
+	}
+	if defaultValue, ok := params["default"].(T); ok {
+		return &defaultValue
+	}
+	return nil
+}

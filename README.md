@@ -1,6 +1,6 @@
 # OpenCHAMI Configurator
 
-The `configurator` (portmanteau of config + generator) is a tool that fetchs data from an instance of [SMD](https://github.com/OpenCHAMI/smd) to generate commonly used config files. The tool is also capable of some templating using the Jinja 2 syntax with generator plugins.
+The `configurator` (portmanteau of config + generator) is an extensible tool that fetchs data from an instance of [SMD](https://github.com/OpenCHAMI/smd) to generate commonly used config files based on Jinja 2 template files. The tool and generator plugins are written in Go and plugins can be written by following the ["Creating Generator Plugins"](#creating-generator-plugins) section of this README.
 
 ## Building and Usage
 
@@ -32,29 +32,33 @@ These commands will build the default plugins and store them in the "lib" direct
 
 This will generate a new `dnsmasq` config file based on the Jinja 2 template specified in the config file for "dnsmasq". The `--target` flag specifies the type of config file to generate by its name (see the [`Creating Generator Plugins`](#creating-generator-plugins) section for details). The `configurator` tool requires a valid access token when making requests to an instance of SMD that has protected routes.
 
-The tool can also run as a microservice:
+The tool can also run as a service to generate files for clients:
 
 ```bash
 ./configurator serve --config config.yaml
 ```
 
-Once the server is up and listening for HTTP requests, you can try making a request to it with curl:
+Once the server is up and listening for HTTP requests, you can try making a request to it with `curl` or `configurator fetch`. Both commands below are essentially equivalent:
 
 ```bash
-curl http://127.0.0.1:3334/target?type=dhcp&template=dnsmasq
+curl http://127.0.0.1:3334/generate?target=dnsmasq -H "Authorization: Bearer $ACCESS_TOKEN"
+# ...or...
+./configurator fetch --target dnsmasq --host http://127.0.0.1 --port 3334 
 ```
 
-This will do the same thing as the `generate` subcommand, but remotely.
+This will do the same thing as the `generate` subcommand, but remotely. The access token is only required if the `CONFIGURATOR_JWKS_URL` environment variable is set. The `ACCESS_TOKEN` environment variable passed to `curl` and it's corresponding CLI argument both expects a token as a JWT.
 
 ### Creating Generator Plugins
 
 The `configurator` uses generator plugins to define how config files are generated using a `Generator` interface.  The interface is defined like so:
 
 ```go
+type Files = map[string][]byte
 type Generator interface {
   GetName() string
-  GetGroups() []string
-  Generate(config *configurator.Config, opts ...util.Option) ([]byte, error)
+  GetVersion() string
+  GetDescription() string
+  Generate(config *configurator.Config, opts ...util.Option) (Files, error)
 }
 ```
 
@@ -66,14 +70,20 @@ package main
 type MyGenerator struct {}
 
 func (g *MyGenerator) GetName() string {
-  return "my-generator"
+  // just an example...this can be done however you want
+  pluginInfo := LoadFromFile("path/to/plugin/info.json")
+  return pluginInfo["name"]
 }
 
-func (g *MyGenerator) GetGroups() []string {
-  return []string{ "my-generator" }
+func (g *MyGenerator) GetVersion() string {
+  return "v1.0.0"
 }
 
-func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option) ([]byte, error) {
+func (g *MyGenerator) GetDescription() string {
+  return "This is an example plugin."
+}
+
+func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {
   // do config generation stuff here...
   var (
     params = generator.GetParams(opts...)
@@ -85,7 +95,7 @@ func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option)
     // ... blah, blah, blah, format output, and so on...
   }
 
-  // apply the template and get substituted output as byte array
+  // apply the substitutions to Jinja template and return output as byte array
   return generator.ApplyTemplate(path, generator.Mappings{
     "hosts": output,
   })
@@ -101,38 +111,41 @@ Finally, build the plugin and put it somewhere specified by `plugins` in your co
 go build -buildmode=plugin -o lib/mygenerator.so path/to/mygenerator.go
 ```
 
-Now your plugin should be available to use with the `configurator` main driver.
+Now your plugin should be available to use with the `configurator` main driver. If you get an error about not loading the correct symbol type, make sure that you generator function definitions match the `Generator` interface exactly.
 
 ## Configuration
 
 Here is an example config file to start using configurator:
 
 ```yaml
-server:
+server:         # Server-related parameters when using as service
   host: 127.0.0.1
   port: 3334
-  jwks:
+  jwks:         # Set the JWKS uri to protect /generate route
     uri: ""
     retries: 5
-smd:
+smd: .          # SMD-related parameters
   host: http://127.0.0.1
   port: 27779
-templates:
-  dnsmasq: templates/dnsmasq.jinja
-  coredhcp: templates/coredhcp.jinja
-  syslog: templates/syslog.jinja
-  ansible: templates/ansible.jinja
-  powerman: templates/powerman.jinja
-  conman: templates/conman.jinja
-groups:
-  warewulf:
-    - dnsmasq
-    - syslog
-    - ansible
-    - powerman
-    - conman
-plugins:
+plugins:        # path to plugin directories
   - "lib/"
+targets:        # targets to call with --target flag
+  dnsmasq:
+    templates:
+      - templates/dnsmasq.jinja
+  warewulf:
+    templates:  # files using Jinja templating
+      - templates/warewulf/vnfs/dhcpd-template.jinja
+      - templates/warewulf/vnfs/dnsmasq-template.jinja
+    files:      # files to be copied without templating
+      - templates/warewulf/defaults/provision.jinja
+      - templates/warewulf/defaults/node.jinja
+      - templates/warewulf/filesystem/examples/*
+      - templates/warewulf/vnfs/*
+      - templates/warewulf/bootstrap.jinja
+      - templates/warewulf/database.jinja
+    targets:    # additional targets to run 
+      - dnsmasq
 ```
 
 The `server` section sets the properties for running the `configurator` tool as a service and is not required if you're only using the CLI. Also note that the `jwks-uri` parameter is only needs for protecting endpoints. If it is not set, then the API is entirely public. The `smd` section tells the `configurator` tool where to find SMD to pull state management data used by the internal client. The `templates` section is where the paths are mapped to each generator plugin by its name (see the [`Creating Generator Plugins`](#creating-generator-plugins) section for details). The `plugins` is a list of paths to load generator plugins.
@@ -140,9 +153,10 @@ The `server` section sets the properties for running the `configurator` tool as 
 ## Known Issues
 
 - Adds a new `OAuthClient` with every token request
+- Plugins are being loaded each time a file is generated
 
 ## TODO
 
-- Add group functionality
-- Extend SMD client functionality
-- Redo service API with authorization
+- Add group functionality to create by files by groups
+- Extend SMD client functionality (or make extensible?)
+- Handle authentication with `OAuthClient`'s correctly

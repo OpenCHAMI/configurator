@@ -1,0 +1,12 @@
+#
+# Ansible managed
+#
+include "/etc/powerman/ipmipower.dev"
+include "/etc/powerman/ipmi.dev"
+
+
+# list of devices
+{{ devices }}
+
+# create nodes based on found nodes in hostfile
+{{ nodes }}
