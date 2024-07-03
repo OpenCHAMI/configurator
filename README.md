@@ -53,10 +53,12 @@ This will do the same thing as the `generate` subcommand, but remotely.
 The `configurator` uses generator plugins to define how config files are generated using a `Generator` interface.  The interface is defined like so:
 
 ```go
+type Files = map[string][]byte
 type Generator interface {
   GetName() string
-  GetGroups() []string
-  Generate(config *configurator.Config, opts ...util.Option) ([]byte, error)
+  GetVersion() string
+  GetDescription() string
+  Generate(config *configurator.Config, opts ...util.Option) (Files, error)
 }
 ```
 
@@ -68,7 +70,17 @@ package main
 type MyGenerator struct {}
 
 func (g *MyGenerator) GetName() string {
-  return "my-generator"
+  // just an example...this can be done however you want
+  pluginInfo := LoadFromFile("path/to/plugin/info.json")
+  return pluginInfo["name"]
+}
+
+func (g *MyGenerator) GetVersion() string {
+  return "v1.0.0"
+}
+
+func (g *MyGenerator) GetDescription() string {
+  return "This is an example plugin."
 }
 
 func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {
@@ -83,7 +95,7 @@ func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option)
     // ... blah, blah, blah, format output, and so on...
   }
 
-  // apply the template and get substituted output as byte array
+  // apply the substitutions to Jinja template and return output as byte array
   return generator.ApplyTemplate(path, generator.Mappings{
     "hosts": output,
   })
