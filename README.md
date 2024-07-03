@@ -100,8 +100,8 @@ func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option)
   // apply the substitutions to Jinja template and return output as byte array
   return generator.ApplyTemplate(path, generator.Mappings{
     "plugin_name":        g.GetName(),
-		"plugin_version":     g.GetVersion(),
-		"plugin_description": g.GetDescription(),
+    "plugin_version":     g.GetVersion(),
+    "plugin_description": g.GetDescription(),
     "output": output,
   })
 }
