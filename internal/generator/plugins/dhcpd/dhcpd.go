@@ -65,8 +65,11 @@ func (g *Dhcpd) Generate(config *configurator.Config, opts ...util.Option) (gene
 		}
 	}
 	return generator.ApplyTemplates(generator.Mappings{
-		"compute_nodes": compute_nodes,
-		"node_entries":  "",
+		"plugin_name":        g.GetName(),
+		"plugin_version":     g.GetVersion(),
+		"plugin_description": g.GetDescription(),
+		"compute_nodes":      compute_nodes,
+		"node_entries":       "",
 	}, target.Templates...)
 }
 
