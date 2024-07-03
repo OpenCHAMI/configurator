@@ -61,8 +61,11 @@ func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (map
 
 	// apply template substitutions and return output as byte array
 	return generator.ApplyTemplates(generator.Mappings{
-		"server_opts": "",
-		"global_opts": "",
+		"plugin_name":        g.GetName(),
+		"plugin_version":     g.GetVersion(),
+		"plugin_description": g.GetDescription(),
+		"server_opts":        "",
+		"global_opts":        "",
 	}, target.Templates...)
 }
 

@@ -62,7 +62,7 @@ type Generator interface {
 }
 ```
 
-A new plugin can be created by implementing the methods from interface and exporting a symbol with `Generator` as the name and the plugin struct as the type. The `GetName()` function returns the name that is used for looking up the corresponding template set in your config file. The `GetGroups()` function is used to look all of the groups that the plugin is included. The `Generate` function is where the magic happens to build the config file from a template.
+A new plugin can be created by implementing the methods from interface and exporting a symbol with `Generator` as the name and the plugin struct as the type. The `GetName()` function returns the name that is used for looking up the corresponding template set in your config file. It can also be included in the templated files with the default plugins using the `{{ plugin_name }}` in your template. The `GetVersion()` and `GetDescription()` functions returns the version and description of the plugin which can be included in the templated files using `{{ plugin_version }}` and `{{ plugin_description }}` respectively with the default plugins. The `Generate` function is where the magic happens to build the config file from a template.
 
 ```go
 package main
@@ -83,7 +83,7 @@ func (g *MyGenerator) GetDescription() string {
   return "This is an example plugin."
 }
 
-func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {
+func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option) (generator.Files, error) {
   // do config generation stuff here...
   var (
     params = generator.GetParams(opts...)
@@ -92,16 +92,19 @@ func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option)
   )
   if client {
     eths, err := client.FetchEthernetInterfaces(opts...)
-    // ... blah, blah, blah, format output, and so on...
+    // ... blah, blah, blah, check error, format output, and so on...
   }
 
   // apply the substitutions to Jinja template and return output as byte array
   return generator.ApplyTemplate(path, generator.Mappings{
-    "hosts": output,
+    "plugin_name":        g.GetName(),
+		"plugin_version":     g.GetVersion(),
+		"plugin_description": g.GetDescription(),
+    "output": output,
   })
 }
 
-// this MUST be named "Generator" for symbol lookup
+// this MUST be named "Generator" for symbol lookup in main driver
 var Generator MyGenerator
 ```
 

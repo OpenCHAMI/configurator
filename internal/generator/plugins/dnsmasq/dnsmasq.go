@@ -75,8 +75,10 @@ func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (ma
 
 	// apply template substitutions and return output as byte array
 	return generator.ApplyTemplates(generator.Mappings{
-		"name":   g.GetName(),
-		"output": output,
+		"plugin_name":        g.GetName(),
+		"plugin_version":     g.GetVersion(),
+		"plugin_description": g.GetDescription(),
+		"dhcp-hosts":         output,
 	}, target.Templates...)
 }
 
