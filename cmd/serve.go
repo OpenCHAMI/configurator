@@ -51,6 +51,7 @@ var serveCmd = &cobra.Command{
 
 		// set up the routes and start the server
 		server := server.Server{
+			Config: &config,
 			Server: &http.Server{
 				Addr: fmt.Sprintf("%s:%d", config.Server.Host, config.Server.Port),
 			},
@@ -65,7 +66,7 @@ var serveCmd = &cobra.Command{
 				Verbose: verbose,
 			},
 		}
-		err := server.Serve(&config)
+		err := server.Serve()
 		if errors.Is(err, http.ErrServerClosed) {
 			fmt.Printf("Server closed.")
 		} else if err != nil {
