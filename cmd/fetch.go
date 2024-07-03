@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	remoteHost string
-	remotePort int
+	accessToken string
+	remoteHost  string
+	remotePort  int
 )
 
 var fetchCmd = &cobra.Command{
@@ -26,11 +27,16 @@ var fetchCmd = &cobra.Command{
 			logrus.Errorf("no '--host' argument set")
 			return
 		}
-		for _, target := range targets {
 
+		headers := map[string]string{}
+		if accessToken != "" {
+			headers["Authorization"] = "Bearer " + accessToken
+		}
+
+		for _, target := range targets {
 			// make a request for each target
 			url := fmt.Sprintf("%s:%d/generate?target=%s", remoteHost, remotePort, target)
-			res, body, err := util.MakeRequest(url, http.MethodGet, nil, nil)
+			res, body, err := util.MakeRequest(url, http.MethodGet, nil, headers)
 			if err != nil {
 				logrus.Errorf("failed to make request: %v", err)
 				return
@@ -49,6 +55,7 @@ func init() {
 	fetchCmd.Flags().IntVar(&remotePort, "port", 3334, "set the remote configurator port")
 	fetchCmd.Flags().StringSliceVar(&targets, "target", nil, "set the target configs to make")
 	fetchCmd.Flags().StringVarP(&outputPath, "output", "o", "", "set the output path for config targets")
+	fetchCmd.Flags().StringVar(&accessToken, "access-token", "o", "", "set the output path for config targets")
 
 	rootCmd.AddCommand(fetchCmd)
 }
