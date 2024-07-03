@@ -24,6 +24,8 @@ go build -buildmode=plugin -o lib/powerman.so internal/generator/plugins/powerma
 go build -buildmode=plugin -o lib/syslog.so internal/generator/plugins/syslog/syslog.go
 ```
 
+NOTE: Not all of the plugins have completed generation implementations and are WIP.
+
 These commands will build the default plugins and store them in the "lib" directory by default. Alternatively, the plugins can be built using `make plugins` if GNU make is installed and available. After you build the plugins, run the following to use the tool:
 
 ```bash
