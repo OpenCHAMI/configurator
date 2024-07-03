@@ -113,15 +113,15 @@ func RunTargets(config *configurator.Config, targets ...string) {
 			// write multiple files in directory using template name
 			err := os.MkdirAll(filepath.Clean(outputPath), 0o755)
 			if err != nil {
-				fmt.Printf("failed to make output directory: %v", err)
+				fmt.Printf("failed to make output directory: %v\n", err)
 				os.Exit(1)
 			}
 			for path, contents := range outputBytes {
 				filename := filepath.Base(path)
 				cleanPath := fmt.Sprintf("%s/%s", filepath.Clean(outputPath), filename)
-				err := os.WriteFile(cleanPath, contents, 0o644)
+				err := os.WriteFile(cleanPath, contents, 0o755)
 				if err != nil {
-					fmt.Printf("failed to write config to file: %v", err)
+					fmt.Printf("failed to write config to file: %v\n", err)
 					os.Exit(1)
 				}
 				fmt.Printf("wrote file to '%s'\n", cleanPath)

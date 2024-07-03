@@ -76,6 +76,5 @@ func CopyIf[T comparable](s []T, condition func(t T) bool) []T {
 			f = append(f, e)
 		}
 	}
-
 	return f
 }

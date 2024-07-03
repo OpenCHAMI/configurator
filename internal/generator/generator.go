@@ -169,7 +169,7 @@ func LoadFiles(paths ...string) (Files, error) {
 	for _, path := range paths {
 		expandedPaths, err := filepath.Glob(path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to expand path: %v", err)
+			return nil, fmt.Errorf("failed to glob path: %v", err)
 		}
 		for _, expandedPath := range expandedPaths {
 			info, err := os.Stat(expandedPath)
