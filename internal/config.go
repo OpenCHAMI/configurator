@@ -38,6 +38,7 @@ type Config struct {
 	Options     Options           `yaml:"options"`
 }
 
+// Creates a new config with default parameters.
 func NewConfig() Config {
 	return Config{
 		Version: "",

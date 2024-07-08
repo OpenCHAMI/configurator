@@ -55,7 +55,7 @@ func init() {
 	fetchCmd.Flags().IntVar(&remotePort, "port", 3334, "set the remote configurator port")
 	fetchCmd.Flags().StringSliceVar(&targets, "target", nil, "set the target configs to make")
 	fetchCmd.Flags().StringVarP(&outputPath, "output", "o", "", "set the output path for config targets")
-	fetchCmd.Flags().StringVar(&accessToken, "access-token", "o", "", "set the output path for config targets")
+	fetchCmd.Flags().StringVar(&accessToken, "access-token", "o", "set the output path for config targets")
 
 	rootCmd.AddCommand(fetchCmd)
 }

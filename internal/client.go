@@ -15,16 +15,13 @@ import (
 	"github.com/OpenCHAMI/configurator/internal/util"
 )
 
+type ClientOption func(*SmdClient)
 type SmdClient struct {
 	http.Client `json:"-"`
 	Host        string `yaml:"host"`
 	Port        int    `yaml:"port"`
 	AccessToken string `yaml:"access-token"`
 }
-
-type Params = map[string]any
-type Option func(Params)
-type ClientOption func(*SmdClient)
 
 func NewSmdClient(opts ...ClientOption) SmdClient {
 	client := SmdClient{}
@@ -80,14 +77,14 @@ func WithSecureTLS(certPath string) ClientOption {
 	return WithCertPool(certPool)
 }
 
-func WithVerbosity() Option {
+func WithVerbosity() util.Option {
 	return func(p util.Params) {
 		p["verbose"] = true
 	}
 }
 
-func NewParams() Params {
-	return Params{
+func NewParams() util.Params {
+	return util.Params{
 		"verbose": false,
 	}
 }

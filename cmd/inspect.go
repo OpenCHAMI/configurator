@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	byTarget   bool
 	pluginDirs []string
 	generators map[string]generator.Generator
 )
@@ -17,6 +18,7 @@ var (
 var inspectCmd = &cobra.Command{
 	Use:   "inspect",
 	Short: "Inspect generator plugin information",
+	Long:  "The 'inspect' sub-command takes a list of directories and prints all found plugin information.",
 	Run: func(cmd *cobra.Command, args []string) {
 		// load specific plugins from positional args
 		generators = make(map[string]generator.Generator)
@@ -24,6 +26,10 @@ var inspectCmd = &cobra.Command{
 			gen, err := generator.LoadPlugin(path)
 			if err != nil {
 				fmt.Printf("failed to load plugin at path '%s': %v\n", path, err)
+				continue
+			}
+			// path is directory, so no plugin is loaded, but no error was returned
+			if gen == nil {
 				continue
 			}
 			generators[path] = gen
@@ -59,5 +65,6 @@ var inspectCmd = &cobra.Command{
 }
 
 func init() {
+	inspectCmd.Flags().BoolVar(&byTarget, "by-target", false, "set whether to ")
 	rootCmd.AddCommand(inspectCmd)
 }

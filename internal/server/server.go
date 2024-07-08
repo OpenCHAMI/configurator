@@ -33,8 +33,9 @@ type Server struct {
 	TokenAuth       *jwtauth.JWTAuth
 }
 
-func New() *Server {
+func New(config *configurator.Config) *Server {
 	return &Server{
+		Config: config,
 		Server: &http.Server{
 			Addr: "localhost:3334",
 		},

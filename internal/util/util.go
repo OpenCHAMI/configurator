@@ -11,6 +11,7 @@ import (
 	"strings"
 )
 
+// Wrapper function to simplify checking if a path exists.
 func PathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -22,6 +23,19 @@ func PathExists(path string) (bool, error) {
 	return false, err
 }
 
+func IsDirectory(path string) (bool, error) {
+	// This returns an *os.FileInfo type
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false, fmt.Errorf("failed to stat path: %v", err)
+	}
+
+	// IsDir is short for fileInfo.Mode().IsDir()
+	return fileInfo.IsDir(), nil
+}
+
+// Wrapper function to confine making a HTTP request into a single function
+// instead of multiple.
 func MakeRequest(url string, httpMethod string, body []byte, headers map[string]string) (*http.Response, []byte, error) {
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	req, err := http.NewRequest(httpMethod, url, bytes.NewBuffer(body))
@@ -44,14 +58,9 @@ func MakeRequest(url string, httpMethod string, body []byte, headers map[string]
 	return res, b, err
 }
 
-func ConvertMapOutput(m map[string][]byte) map[string]string {
-	n := make(map[string]string, len(m))
-	for k, v := range m {
-		n[k] = string(v)
-	}
-	return n
-}
-
+// Returns the git commit string by executing command.
+// NOTE: This currently requires git to be installed.
+// TODO: Change how this is done to not require executing a command.
 func GitCommit() string {
 	c := exec.Command("git", "rev-parse", "HEAD")
 	stdout, err := c.Output()
@@ -62,13 +71,15 @@ func GitCommit() string {
 	return strings.TrimRight(string(stdout), "\n")
 }
 
-// NOTE: would it be better to use slices.DeleteFunc instead
+// General function to remove element by a given index.
+// NOTE: would it be better to use slices.DeleteFunc instead?
 func RemoveIndex[T comparable](s []T, index int) []T {
 	ret := make([]T, 0)
 	ret = append(ret, s[:index]...)
 	return append(ret, s[index+1:]...)
 }
 
+// General function to copy elements from slice if condition is true.
 func CopyIf[T comparable](s []T, condition func(t T) bool) []T {
 	var f = make([]T, 0)
 	for _, e := range s {

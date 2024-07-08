@@ -61,12 +61,12 @@ var generateCmd = &cobra.Command{
 			fmt.Printf("%v\n", string(b))
 		}
 
-		RunTargets(targets...)
+		RunTargets(&config, args, targets...)
 
 	},
 }
 
-func RunTargets(config *configurator.Config, targets ...string) {
+func RunTargets(config *configurator.Config, args []string, targets ...string) {
 	// generate config with each supplied target
 	for _, target := range targets {
 		params := generator.Params{
@@ -75,13 +75,13 @@ func RunTargets(config *configurator.Config, targets ...string) {
 			Target:      target,
 			Verbose:     verbose,
 		}
-		outputBytes, err := generator.Generate(&config, params)
+		outputBytes, err := generator.Generate(config, params)
 		if err != nil {
 			fmt.Printf("failed to generate config: %v\n", err)
 			os.Exit(1)
 		}
 
-		outputMap := util.ConvertMapOutput(outputBytes)
+		outputMap := generator.ConvertContentsToString(outputBytes)
 
 		// if we have more than one target and output is set, create configs in directory
 		var (
@@ -129,10 +129,10 @@ func RunTargets(config *configurator.Config, targets ...string) {
 		}
 
 		// remove any targets that are the same as current to prevent infinite loop
-		nextTargets := util.CopyIf(config.Targets[targets].Targets, func(t T) bool { return t != target })
+		nextTargets := util.CopyIf(config.Targets[target].RunTargets, func(t string) bool { return t != target })
 
 		// ...then, run any other targets that the current target has
-		RunTargets(config, nextTargets...)
+		RunTargets(config, args, nextTargets...)
 	}
 }
 

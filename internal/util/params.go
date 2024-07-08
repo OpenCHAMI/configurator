@@ -6,9 +6,11 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-type Params = map[string]any
+// Params are accessible in generator.Generate().
+type Params map[string]any
 type Option func(Params)
 
+// Extract all parameters from the options passed as map[string]any.
 func GetParams(opts ...Option) Params {
 	params := Params{}
 	for _, opt := range opts {
@@ -17,7 +19,8 @@ func GetParams(opts ...Option) Params {
 	return params
 }
 
-func OptionExists(params Params, opt string) bool {
+// Test if an option is present in params
+func (p *Params) OptionExists(params Params, opt string) bool {
 	var k []string = maps.Keys(params)
 	return slices.Contains(k, opt)
 }
