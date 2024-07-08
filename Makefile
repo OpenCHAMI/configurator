@@ -15,6 +15,7 @@ plugins:
 	go build -buildmode=plugin -o lib/coredhcp.so internal/generator/plugins/coredhcp/coredhcp.go
 	go build -buildmode=plugin -o lib/dhcpd.so internal/generator/plugins/dhcpd/dhcpd.go
 	go build -buildmode=plugin -o lib/dnsmasq.so internal/generator/plugins/dnsmasq/dnsmasq.go
+	go build -buildmode=plugin -o lib/example.so internal/generator/plugins/example/example.go
 	go build -buildmode=plugin -o lib/hostfile.so internal/generator/plugins/hostfile/hostfile.go
 	go build -buildmode=plugin -o lib/powerman.so internal/generator/plugins/powerman/powerman.go
 	go build -buildmode=plugin -o lib/syslog.so internal/generator/plugins/syslog/syslog.go

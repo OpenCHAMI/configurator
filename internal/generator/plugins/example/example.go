@@ -30,3 +30,5 @@ func (g *Example) Generate(config *configurator.Config, opts ...util.Option) (ge
 	information about constructing plugins and plugin requirements.`
 	return generator.Files{"example": []byte(g.Message)}, nil
 }
+
+var Generator Example

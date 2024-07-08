@@ -22,11 +22,7 @@ func (g *Conman) GetDescription() string {
 	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
-func (g *Conman) GetGroups() []string {
-	return []string{""}
-}
-
-func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (map[string][]byte, error) {
+func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (generator.Files, error) {
 	var (
 		params                                   = generator.GetParams(opts...)
 		client                                   = generator.GetClient(params)
