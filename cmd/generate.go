@@ -66,6 +66,12 @@ var generateCmd = &cobra.Command{
 	},
 }
 
+// Generate files by supplying a list of targets as string values. Currently,
+// targets are defined statically in a config file. Targets are ran recursively
+// if more targets are nested in a defined target, but will not run additional
+// child targets if it is the same as the parent.
+//
+// NOTE: This may be changed in the future how this is done.
 func RunTargets(config *configurator.Config, args []string, targets ...string) {
 	// generate config with each supplied target
 	for _, target := range targets {

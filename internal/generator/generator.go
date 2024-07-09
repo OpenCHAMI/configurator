@@ -16,7 +16,8 @@ import (
 )
 
 type Mappings map[string]any
-type Files map[string][]byte
+type FileMap map[string][]byte
+type FileList [][]byte
 
 // Generator interface used to define how files are created. Plugins can
 // be created entirely independent of the main driver program.
@@ -24,7 +25,7 @@ type Generator interface {
 	GetName() string
 	GetVersion() string
 	GetDescription() string
-	Generate(config *configurator.Config, opts ...util.Option) (Files, error)
+	Generate(config *configurator.Config, opts ...util.Option) (FileMap, error)
 }
 
 // Params defined and used by the "generate" subcommand.
@@ -35,7 +36,8 @@ type Params struct {
 	Verbose     bool
 }
 
-func ConvertContentsToString(f Files) map[string]string {
+// Converts the file outputs from map[string][]byte to map[string]string.
+func ConvertContentsToString(f FileMap) map[string]string {
 	n := make(map[string]string, len(f))
 	for k, v := range f {
 		n[k] = string(v)
@@ -44,8 +46,8 @@ func ConvertContentsToString(f Files) map[string]string {
 }
 
 // Loads files without applying any Jinja 2 templating.
-func LoadFiles(paths ...string) (Files, error) {
-	var outputs = Files{}
+func LoadFiles(paths ...string) (FileMap, error) {
+	var outputs = FileMap{}
 	for _, path := range paths {
 		expandedPaths, err := filepath.Glob(path)
 		if err != nil {
@@ -200,11 +202,41 @@ func GetParams(opts ...util.Option) util.Params {
 
 // Wrapper function to slightly abstract away some of the nuances with using gonja
 // into a single function call. This function is *mostly* for convenience and
-// simplication.
-func ApplyTemplates(mappings map[string]any, paths ...string) (Files, error) {
+// simplication. If no paths are supplied, then no templates will be applied and
+// there will be no output.
+//
+// The "FileList" returns a slice of byte arrays in the same order as the argument
+// list supplied, but with the Jinja templating applied.
+func ApplyTemplates(mappings Mappings, contents ...[]byte) (FileList, error) {
 	var (
 		data    = exec.NewContext(mappings)
-		outputs = Files{}
+		outputs = FileList{}
+	)
+
+	for _, b := range contents {
+		// load jinja template from file
+		t, err := gonja.FromBytes(b)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read template from file: %v", err)
+		}
+
+		// execute/render jinja template
+		b := bytes.Buffer{}
+		if err = t.Execute(&b, data); err != nil {
+			return nil, fmt.Errorf("failed to execute: %v", err)
+		}
+		outputs = append(outputs, b.Bytes())
+	}
+
+	return outputs, nil
+}
+
+// Wrapper function similiar to "ApplyTemplates" but takes file paths as arguments.
+// This function will load templates from a file instead of using file contents.
+func ApplyTemplateFromFiles(mappings Mappings, paths ...string) (FileMap, error) {
+	var (
+		data    = exec.NewContext(mappings)
+		outputs = FileMap{}
 	)
 
 	for _, path := range paths {
@@ -234,7 +266,7 @@ func ApplyTemplates(mappings map[string]any, paths ...string) (Files, error) {
 // It is also call when running the configurator as a service with the "/generate" route.
 //
 // TODO: Separate loading plugins so we can load them once when running as a service.
-func Generate(config *configurator.Config, params Params) (Files, error) {
+func Generate(config *configurator.Config, params Params) (FileMap, error) {
 	// load generator plugins to generate configs or to print
 	var (
 		generators = make(map[string]Generator)
@@ -242,7 +274,7 @@ func Generate(config *configurator.Config, params Params) (Files, error) {
 			configurator.WithHost(config.SmdClient.Host),
 			configurator.WithPort(config.SmdClient.Port),
 			configurator.WithAccessToken(config.AccessToken),
-			configurator.WithSecureTLS(config.CertPath),
+			configurator.WithCertPoolFile(config.CertPath),
 		)
 	)
 

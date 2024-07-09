@@ -21,6 +21,7 @@ var (
 var fetchCmd = &cobra.Command{
 	Use:   "fetch",
 	Short: "Fetch a config file from a remote instance of configurator",
+	Long:  "This command is simplified to make a HTTP request to the a configurator service.",
 	Run: func(cmd *cobra.Command, args []string) {
 		// make sure a host is set
 		if remoteHost == "" {
@@ -28,6 +29,7 @@ var fetchCmd = &cobra.Command{
 			return
 		}
 
+		// add the "Authorization" header if an access token is supplied
 		headers := map[string]string{}
 		if accessToken != "" {
 			headers["Authorization"] = "Bearer " + accessToken
@@ -41,6 +43,7 @@ var fetchCmd = &cobra.Command{
 				logrus.Errorf("failed to make request: %v", err)
 				return
 			}
+			// handle getting other error codes other than a 200
 			if res != nil {
 				if res.StatusCode == http.StatusOK {
 					fmt.Printf("%s\n", string(body))

@@ -23,7 +23,7 @@ func (g *DnsMasq) GetDescription() string {
 	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
-func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (generator.Files, error) {
+func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
 	// make sure we have a valid config first
 	if config == nil {
 		return nil, fmt.Errorf("invalid config (config is nil)")
@@ -74,7 +74,7 @@ func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (ge
 	output += "# ====================================================================="
 
 	// apply template substitutions and return output as byte array
-	return generator.ApplyTemplates(generator.Mappings{
+	return generator.ApplyTemplateFromFiles(generator.Mappings{
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),

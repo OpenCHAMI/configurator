@@ -16,6 +16,11 @@ import (
 )
 
 type ClientOption func(*SmdClient)
+
+// An struct that's meant to extend functionality of the base HTTP client by
+// adding commonly made requests to SMD. The implemented functions are can be
+// used in generator plugins to fetch data when it is needed to substitute
+// values for the Jinja templates used.
 type SmdClient struct {
 	http.Client `json:"-"`
 	Host        string `yaml:"host"`
@@ -23,6 +28,8 @@ type SmdClient struct {
 	AccessToken string `yaml:"access-token"`
 }
 
+// Constructor function that allows supplying ClientOption arguments to set
+// things like the host, port, access token, etc.
 func NewSmdClient(opts ...ClientOption) SmdClient {
 	client := SmdClient{}
 	for _, opt := range opts {
@@ -67,7 +74,8 @@ func WithCertPool(certPool *x509.CertPool) ClientOption {
 	}
 }
 
-func WithSecureTLS(certPath string) ClientOption {
+// FIXME: Need to check for errors when reading from a file
+func WithCertPoolFile(certPath string) ClientOption {
 	if certPath == "" {
 		return func(sc *SmdClient) {}
 	}
@@ -83,6 +91,7 @@ func WithVerbosity() util.Option {
 	}
 }
 
+// Create a set of params with all default values.
 func NewParams() util.Params {
 	return util.Params{
 		"verbose": false,

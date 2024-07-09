@@ -33,19 +33,27 @@ type Server struct {
 	TokenAuth       *jwtauth.JWTAuth
 }
 
+// Constructor to make a new server instance with an optional config.
 func New(config *configurator.Config) *Server {
+	// create default config if none supplied
+	if config == nil {
+		c := configurator.NewConfig()
+		config = &c
+	}
+	// return based on config values
 	return &Server{
 		Config: config,
 		Server: &http.Server{
-			Addr: "localhost:3334",
+			Addr: fmt.Sprintf("%s:%d", config.Server.Host, config.Server.Port),
 		},
 		Jwks: Jwks{
-			Uri:     "",
-			Retries: 5,
+			Uri:     config.Server.Jwks.Uri,
+			Retries: config.Server.Jwks.Retries,
 		},
 	}
 }
 
+// Main function to start up configurator as a service.
 func (s *Server) Serve() error {
 	// create client just for the server to use to fetch data from SMD
 	_ = &configurator.SmdClient{
@@ -94,50 +102,60 @@ func (s *Server) Serve() error {
 		router.HandleFunc("/templates", s.ManageTemplates)
 	}
 
-	// always public routes go here (none at the moment)
+	// always available public routes go here (none at the moment)
 
 	s.Handler = router
 	return s.ListenAndServe()
 }
 
-func WriteError(w http.ResponseWriter, format string, a ...any) {
-	errmsg := fmt.Sprintf(format, a...)
-	fmt.Printf(errmsg)
-	w.Write([]byte(errmsg))
-}
-
+// This is the corresponding service function to generate templated files, that
+// works similarly to the CLI variant. This function takes similiar arguments as
+// query parameters that are included in the HTTP request URL.
 func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
+	// get all of the expect query URL params and validate
 	s.GeneratorParams.Target = r.URL.Query().Get("target")
-	outputs, err := generator.Generate(s.Config, s.GeneratorParams)
-	if err != nil {
-		WriteError(w, "failed to generate config: %v", err)
+	if s.GeneratorParams.Target == "" {
+		writeError(w, "no targets supplied")
 		return
 	}
 
-	// convert byte arrays to string
-	tmp := map[string]string{}
-	for path, output := range outputs {
-		tmp[path] = string(output)
+	// generate a new config file from supplied params
+	outputs, err := generator.Generate(s.Config, s.GeneratorParams)
+	if err != nil {
+		writeError(w, "failed to generate config: %v", err)
+		return
 	}
 
-	// marshal output to JSON then send
+	// marshal output to JSON then send response to client
+	tmp := generator.ConvertContentsToString(outputs)
 	b, err := json.Marshal(tmp)
 	if err != nil {
-		WriteError(w, "failed to marshal output: %v", err)
+		writeError(w, "failed to marshal output: %v", err)
 		return
 	}
 	_, err = w.Write(b)
 	if err != nil {
-		WriteError(w, "failed to write response: %v", err)
+		writeError(w, "failed to write response: %v", err)
 		return
 	}
 }
 
+// Incomplete WIP function for managing templates remotely. There is currently no
+// internal API to do this yet.
+//
+// TODO: need to implement template managing API first in "internal/generator/templates" or something
 func (s *Server) ManageTemplates(w http.ResponseWriter, r *http.Request) {
-	// TODO: need to implement template managing API first in "internal/generator/templates" or something
 	_, err := w.Write([]byte("this is not implemented yet"))
 	if err != nil {
-		WriteError(w, "failed to write response: %v", err)
+		writeError(w, "failed to write response: %v", err)
 		return
 	}
+}
+
+// Wrapper function to simplify writting error message responses. This function
+// is only intended to be used with the service and nothing else.
+func writeError(w http.ResponseWriter, format string, a ...any) {
+	errmsg := fmt.Sprintf(format, a...)
+	fmt.Printf(errmsg)
+	w.Write([]byte(errmsg))
 }

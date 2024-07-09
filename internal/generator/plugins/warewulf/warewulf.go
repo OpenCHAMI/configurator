@@ -24,13 +24,13 @@ func (g *Warewulf) GetDescription() string {
 	return "Configurator generator plugin for 'warewulf' config files."
 }
 
-func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (generator.Files, error) {
+func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
 	var (
 		params    = generator.GetParams(opts...)
 		client    = generator.GetClient(params)
 		targetKey = params["target"].(string)
 		target    = config.Targets[targetKey]
-		outputs   = make(generator.Files, len(target.FilePaths)+len(target.Templates))
+		outputs   = make(generator.FileMap, len(target.FilePaths)+len(target.Templates))
 	)
 
 	// check if our client is included and is valid
@@ -76,7 +76,7 @@ func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (g
 	if err != nil {
 		return nil, fmt.Errorf("failed to load files: %v", err)
 	}
-	templates, err := generator.ApplyTemplates(generator.Mappings{
+	templates, err := generator.ApplyTemplateFromFiles(generator.Mappings{
 		"node_entries": nodeEntries,
 	}, target.Templates...)
 	if err != nil {

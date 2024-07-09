@@ -22,7 +22,7 @@ func (g *Conman) GetDescription() string {
 	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
-func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (generator.Files, error) {
+func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
 	var (
 		params                                   = generator.GetParams(opts...)
 		client                                   = generator.GetClient(params)
@@ -56,7 +56,7 @@ func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (gen
 	consoles += "# ====================================================================="
 
 	// apply template substitutions and return output as byte array
-	return generator.ApplyTemplates(generator.Mappings{
+	return generator.ApplyTemplateFromFiles(generator.Mappings{
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),

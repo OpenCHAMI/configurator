@@ -22,7 +22,7 @@ func (g *Syslog) GetDescription() string {
 	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
-func (g *Syslog) Generate(config *configurator.Config, opts ...util.Option) (generator.Files, error) {
+func (g *Syslog) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
 	return nil, fmt.Errorf("plugin does not implement generation function")
 }
 

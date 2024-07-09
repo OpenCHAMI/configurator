@@ -23,6 +23,7 @@ func PathExists(path string) (bool, error) {
 	return false, err
 }
 
+// Wrapper function to simplify checking if a path is a directory.
 func IsDirectory(path string) (bool, error) {
 	// This returns an *os.FileInfo type
 	fileInfo, err := os.Stat(path)
