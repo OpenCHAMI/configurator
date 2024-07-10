@@ -108,6 +108,10 @@ func (s *Server) Serve() error {
 	return s.ListenAndServe()
 }
 
+func (s *Server) Close() {
+
+}
+
 // This is the corresponding service function to generate templated files, that
 // works similarly to the CLI variant. This function takes similiar arguments as
 // query parameters that are included in the HTTP request URL.
