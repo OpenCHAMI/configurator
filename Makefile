@@ -1,6 +1,6 @@
 
 # build everything at once
-all: plugins exe
+all: plugins exe test
 
 # build the main executable to make configs
 main: exe
@@ -21,8 +21,11 @@ plugins:
 	go build -buildmode=plugin -o lib/syslog.so internal/generator/plugins/syslog/syslog.go
 	go build -buildmode=plugin -o lib/warewulf.so internal/generator/plugins/warewulf/warewulf.go
 
-# remove executable and all plugins
+# remove executable and all built plugins
 clean:
 	rm configurator
 	rm lib/*
 
+# run all of the unit tests
+test:
+	go test ./tests/generate_test.go --tags=all

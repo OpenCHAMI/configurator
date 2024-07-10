@@ -8,11 +8,10 @@ import (
 	"path/filepath"
 	"plugin"
 
-	configurator "github.com/OpenCHAMI/configurator/internal"
-	"github.com/OpenCHAMI/configurator/internal/util"
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/util"
 	"github.com/nikolalohinski/gonja/v2"
 	"github.com/nikolalohinski/gonja/v2/exec"
-	"github.com/sirupsen/logrus"
 )
 
 type Mappings map[string]any
@@ -32,6 +31,7 @@ type Generator interface {
 type Params struct {
 	Args        []string
 	PluginPaths []string
+	Generators  map[string]Generator
 	Target      string
 	Verbose     bool
 }
@@ -259,14 +259,14 @@ func ApplyTemplateFromFiles(mappings Mappings, paths ...string) (FileMap, error)
 
 // Main function to generate a collection of files as a map with the path as the key and
 // the contents of the file as the value. This function currently expects a list of plugin
-// paths to load all plugins within a directory. Then, each plugin's generator.Generate()
+// paths to load all plugins within a directory. Then, each plugin's generator.GenerateWithTarget()
 // function is called for each target specified.
 //
 // This function is the corresponding implementation for the "generate" CLI subcommand.
 // It is also call when running the configurator as a service with the "/generate" route.
 //
 // TODO: Separate loading plugins so we can load them once when running as a service.
-func Generate(config *configurator.Config, params Params) (FileMap, error) {
+func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, error) {
 	// load generator plugins to generate configs or to print
 	var (
 		generators = make(map[string]Generator)
@@ -278,12 +278,12 @@ func Generate(config *configurator.Config, params Params) (FileMap, error) {
 		)
 	)
 
-	// load all plugins from params
+	// load all plugins from supplied arguments
 	for _, path := range params.PluginPaths {
 		if params.Verbose {
 			fmt.Printf("loading plugins from '%s'\n", path)
 		}
-		gens, err := LoadPlugins(path)
+		plugins, err := LoadPlugins(path)
 		if err != nil {
 			fmt.Printf("failed to load plugins: %v\n", err)
 			err = nil
@@ -291,8 +291,11 @@ func Generate(config *configurator.Config, params Params) (FileMap, error) {
 		}
 
 		// add loaded generator plugins to set
-		maps.Copy(generators, gens)
+		maps.Copy(generators, plugins)
 	}
+
+	// copy all generators supplied from arguments
+	maps.Copy(generators, params.Generators)
 
 	// show available targets then exit
 	if len(params.Args) == 0 && params.Target == "" {
@@ -302,19 +305,14 @@ func Generate(config *configurator.Config, params Params) (FileMap, error) {
 		return nil, nil
 	}
 
-	if params.Target == "" {
-		logrus.Errorf("no target supplied (--target name)")
-	} else {
-		// run the generator plugin from target passed
-		gen := generators[params.Target]
-		if gen == nil {
-			return nil, fmt.Errorf("invalid generator target (%s)", params.Target)
-		}
-		return gen.Generate(
-			config,
-			WithTarget(gen.GetName()),
-			WithClient(client),
-		)
+	// run the generator plugin from target passed
+	gen := generators[params.Target]
+	if gen == nil {
+		return nil, fmt.Errorf("invalid generator target (%s)", params.Target)
 	}
-	return nil, fmt.Errorf("an unknown error has occurred")
+	return gen.Generate(
+		config,
+		WithTarget(gen.GetName()),
+		WithClient(client),
+	)
 }

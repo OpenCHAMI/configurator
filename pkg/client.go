@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/OpenCHAMI/configurator/internal/util"
+	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
 type ClientOption func(*SmdClient)

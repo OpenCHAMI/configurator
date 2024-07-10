@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	configurator "github.com/OpenCHAMI/configurator/internal"
-	"github.com/OpenCHAMI/configurator/internal/generator"
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -108,6 +108,10 @@ func (s *Server) Serve() error {
 	return s.ListenAndServe()
 }
 
+func (s *Server) Close() {
+
+}
+
 // This is the corresponding service function to generate templated files, that
 // works similarly to the CLI variant. This function takes similiar arguments as
 // query parameters that are included in the HTTP request URL.
@@ -115,14 +119,14 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 	// get all of the expect query URL params and validate
 	s.GeneratorParams.Target = r.URL.Query().Get("target")
 	if s.GeneratorParams.Target == "" {
-		writeError(w, "no targets supplied")
+		writeErrorResponse(w, "no targets supplied")
 		return
 	}
 
 	// generate a new config file from supplied params
-	outputs, err := generator.Generate(s.Config, s.GeneratorParams)
+	outputs, err := generator.GenerateWithTarget(s.Config, s.GeneratorParams)
 	if err != nil {
-		writeError(w, "failed to generate config: %v", err)
+		writeErrorResponse(w, "failed to generate config: %v", err)
 		return
 	}
 
@@ -130,12 +134,12 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 	tmp := generator.ConvertContentsToString(outputs)
 	b, err := json.Marshal(tmp)
 	if err != nil {
-		writeError(w, "failed to marshal output: %v", err)
+		writeErrorResponse(w, "failed to marshal output: %v", err)
 		return
 	}
 	_, err = w.Write(b)
 	if err != nil {
-		writeError(w, "failed to write response: %v", err)
+		writeErrorResponse(w, "failed to write response: %v", err)
 		return
 	}
 }
@@ -147,15 +151,15 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) ManageTemplates(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte("this is not implemented yet"))
 	if err != nil {
-		writeError(w, "failed to write response: %v", err)
+		writeErrorResponse(w, "failed to write response: %v", err)
 		return
 	}
 }
 
 // Wrapper function to simplify writting error message responses. This function
 // is only intended to be used with the service and nothing else.
-func writeError(w http.ResponseWriter, format string, a ...any) {
+func writeErrorResponse(w http.ResponseWriter, format string, a ...any) error {
 	errmsg := fmt.Sprintf(format, a...)
-	fmt.Printf(errmsg)
 	w.Write([]byte(errmsg))
+	return fmt.Errorf(errmsg)
 }
