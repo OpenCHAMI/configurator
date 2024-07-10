@@ -11,9 +11,9 @@ import (
 type Options struct{}
 
 type Target struct {
-	Templates  []string `yaml:"templates,omitempty"`
-	FilePaths  []string `yaml:"files,omitempty"`
-	RunTargets []string `yaml:"targets,omitempty"`
+	TemplatePaths []string `yaml:"templates,omitempty"`
+	FilePaths     []string `yaml:"files,omitempty"`
+	RunTargets    []string `yaml:"targets,omitempty"`
 }
 
 type Jwks struct {
@@ -48,13 +48,13 @@ func NewConfig() Config {
 		},
 		Targets: map[string]Target{
 			"dnsmasq": Target{
-				Templates: []string{},
+				TemplatePaths: []string{},
 			},
 			"conman": Target{
-				Templates: []string{},
+				TemplatePaths: []string{},
 			},
 			"warewulf": Target{
-				Templates: []string{
+				TemplatePaths: []string{
 					"templates/warewulf/defaults/node.jinja",
 					"templates/warewulf/defaults/provision.jinja",
 				},

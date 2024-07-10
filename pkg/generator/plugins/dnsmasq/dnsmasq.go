@@ -58,7 +58,7 @@ func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (ge
 	// print message if verbose param found
 	if verbose, ok := params["verbose"].(bool); ok {
 		if verbose {
-			fmt.Printf("template: \n%s\nethernet interfaces found: %v\n", strings.Join(target.Templates, "\n\t"), len(eths))
+			fmt.Printf("template: \n%s\nethernet interfaces found: %v\n", strings.Join(target.TemplatePaths, "\n\t"), len(eths))
 		}
 	}
 
@@ -79,7 +79,7 @@ func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (ge
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),
 		"dhcp-hosts":         output,
-	}, target.Templates...)
+	}, target.TemplatePaths...)
 }
 
 var Generator DnsMasq

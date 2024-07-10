@@ -5,9 +5,9 @@ import (
 	"maps"
 	"strings"
 
-	configurator "github.com/OpenCHAMI/configurator/internal"
-	"github.com/OpenCHAMI/configurator/internal/generator"
-	"github.com/OpenCHAMI/configurator/internal/util"
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/generator"
+	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
 type Warewulf struct{}
@@ -30,7 +30,7 @@ func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (g
 		client    = generator.GetClient(params)
 		targetKey = params["target"].(string)
 		target    = config.Targets[targetKey]
-		outputs   = make(generator.FileMap, len(target.FilePaths)+len(target.Templates))
+		outputs   = make(generator.FileMap, len(target.FilePaths)+len(target.TemplatePaths))
 	)
 
 	// check if our client is included and is valid
@@ -55,7 +55,7 @@ func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (g
 	// print message if verbose param found
 	if verbose, ok := params["verbose"].(bool); ok {
 		if verbose {
-			fmt.Printf("template: \n%s\n ethernet interfaces found: %v\n", strings.Join(target.Templates, "\n\t"), len(eths))
+			fmt.Printf("template: \n%s\n ethernet interfaces found: %v\n", strings.Join(target.TemplatePaths, "\n\t"), len(eths))
 		}
 	}
 
@@ -78,7 +78,7 @@ func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (g
 	}
 	templates, err := generator.ApplyTemplateFromFiles(generator.Mappings{
 		"node_entries": nodeEntries,
-	}, target.Templates...)
+	}, target.TemplatePaths...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load templates: %v", err)
 	}

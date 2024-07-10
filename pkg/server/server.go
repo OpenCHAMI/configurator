@@ -119,14 +119,14 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 	// get all of the expect query URL params and validate
 	s.GeneratorParams.Target = r.URL.Query().Get("target")
 	if s.GeneratorParams.Target == "" {
-		writeError(w, "no targets supplied")
+		writeErrorResponse(w, "no targets supplied")
 		return
 	}
 
 	// generate a new config file from supplied params
-	outputs, err := generator.Generate(s.Config, s.GeneratorParams)
+	outputs, err := generator.GenerateWithTarget(s.Config, s.GeneratorParams)
 	if err != nil {
-		writeError(w, "failed to generate config: %v", err)
+		writeErrorResponse(w, "failed to generate config: %v", err)
 		return
 	}
 
@@ -134,12 +134,12 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 	tmp := generator.ConvertContentsToString(outputs)
 	b, err := json.Marshal(tmp)
 	if err != nil {
-		writeError(w, "failed to marshal output: %v", err)
+		writeErrorResponse(w, "failed to marshal output: %v", err)
 		return
 	}
 	_, err = w.Write(b)
 	if err != nil {
-		writeError(w, "failed to write response: %v", err)
+		writeErrorResponse(w, "failed to write response: %v", err)
 		return
 	}
 }
@@ -151,15 +151,15 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) ManageTemplates(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte("this is not implemented yet"))
 	if err != nil {
-		writeError(w, "failed to write response: %v", err)
+		writeErrorResponse(w, "failed to write response: %v", err)
 		return
 	}
 }
 
 // Wrapper function to simplify writting error message responses. This function
 // is only intended to be used with the service and nothing else.
-func writeError(w http.ResponseWriter, format string, a ...any) {
+func writeErrorResponse(w http.ResponseWriter, format string, a ...any) error {
 	errmsg := fmt.Sprintf(format, a...)
-	fmt.Printf(errmsg)
 	w.Write([]byte(errmsg))
+	return fmt.Errorf(errmsg)
 }
