@@ -7,12 +7,10 @@ import (
 	"os/exec"
 	"testing"
 
-	"command-line-arguments/Users/allend/Desktop/projects/ochami/configurator/internal/server/server.go"
-
 	configurator "github.com/OpenCHAMI/configurator/internal"
 	"github.com/OpenCHAMI/configurator/internal/generator"
+	"github.com/OpenCHAMI/configurator/internal/server"
 	"github.com/OpenCHAMI/configurator/internal/util"
-	"github.com/docker/docker/api/server"
 )
 
 // A valid test generator that implements the `Generator` interface.
@@ -83,8 +81,9 @@ type InvalidGenerator struct{}
 // Test building and loading plugins
 func TestPlugin(t *testing.T) {
 	var (
-		tempDir    = t.TempDir()
-		testPlugin = []byte(`
+		tempDir        = t.TempDir()
+		testPluginPath = fmt.Sprintf("%s/testplugin.go", tempDir)
+		testPlugin     = []byte(`
 package main
 
 type TestGenerator struct{}
@@ -97,7 +96,6 @@ func (g *TestGenerator) Generate(config *configurator.Config, opts ...util.Optio
 }
 var Generator TestGenerator
 		`)
-		testPluginPath = fmt.Sprintf("%s/testplugin.go")
 	)
 
 	// build a test plugin
@@ -198,7 +196,7 @@ func TestGenerateExample(t *testing.T) {
 		generator.WithClient(client),
 	)
 	if err != nil {
-		t.Fatal("failed to generate file: %v", err)
+		t.Fatalf("failed to generate file: %v", err)
 	}
 
 	// test for 2 expected files to be generated in the output (hint: check the
@@ -223,8 +221,8 @@ func TestGenerateExampleWithServer(t *testing.T) {
 	config.Targets["test"] = configurator.Target{}
 
 	// start up a new server in background
-	server := server.New(config)
-	go server.Server()
+	server := server.New(&config)
+	go server.Serve()
 
 	// make request to server to generate a file
 	res, b, err := util.MakeRequest("http://127.0.0.1:3334/generate?target=test", http.MethodGet, nil, headers)
@@ -253,5 +251,5 @@ func TestGenerateWithNoSymbol(t *testing.T) {
 
 // Test that expects to fail with a specific error: "failed to load the
 // correct symbol type at path"
-func TestGenerateWithInvalidGenerator() {
+func TestGenerateWithInvalidGenerator(t *testing.T) {
 }
