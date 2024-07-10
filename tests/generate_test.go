@@ -7,10 +7,10 @@ import (
 	"os/exec"
 	"testing"
 
-	configurator "github.com/OpenCHAMI/configurator/internal"
-	"github.com/OpenCHAMI/configurator/internal/generator"
-	"github.com/OpenCHAMI/configurator/internal/server"
-	"github.com/OpenCHAMI/configurator/internal/util"
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/generator"
+	"github.com/OpenCHAMI/configurator/pkg/server"
+	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
 // A valid test generator that implements the `Generator` interface.
@@ -81,10 +81,19 @@ type InvalidGenerator struct{}
 // Test building and loading plugins
 func TestPlugin(t *testing.T) {
 	var (
-		tempDir        = t.TempDir()
-		testPluginPath = fmt.Sprintf("%s/testplugin.go", tempDir)
-		testPlugin     = []byte(`
+		testPluginDir        = t.TempDir()
+		testPluginPath       = fmt.Sprintf("%s/testplugin.so", testPluginDir)
+		testPluginSourcePath = fmt.Sprintf("%s/testplugin.go", testPluginDir)
+		testPluginSource     = []byte(`
 package main
+
+import (
+	"fmt"
+
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/generator"
+	"github.com/OpenCHAMI/configurator/pkg/util"
+)
 
 type TestGenerator struct{}
 
@@ -98,42 +107,80 @@ var Generator TestGenerator
 		`)
 	)
 
-	// build a test plugin
-	t.Run("build", func(t *testing.T) {
-		// dump the plugin source code to a file
-		err := os.WriteFile(testPluginPath, testPlugin, os.ModePerm)
-		if err != nil {
-			t.Fatalf("failed to write test plugin file: %v", err)
-		}
+	// make temporary directory to test plugin
+	err := os.MkdirAll(testPluginDir, os.ModeDir)
+	if err != nil {
+		t.Fatalf("failed to make temporary directory: %v", err)
+	}
 
-		// execute command to build the plugin
-		cmd := exec.Command("go", "build", "-buildmode=plugin", fmt.Sprintf("-o=%s/test.so", tempDir))
-		if cmd.Err != nil {
-			t.Fatalf("failed to build plugin: %v", cmd.Err)
-		}
+	// show all paths to make sure we're using the correct ones
+	fmt.Printf("test directory:             %v\n", testPluginDir)
+	fmt.Printf("test plugin path:           %v\n", testPluginPath)
+	fmt.Printf("test plugin source path:    %v\n", testPluginSourcePath)
 
-		// stat the file to confirm that it was built
-		fileInfo, err := os.Stat(testPluginPath)
-		if err != nil {
-			t.Fatalf("failed to stat plugin file: %v", err)
-		}
-		if fileInfo.IsDir() {
-			t.Fatalf("directory file but a file was expected")
-		}
-		if fileInfo.Size() <= 0 {
-			t.Fatal("found an empty file or file with size of 0 bytes")
-		}
+	// dump the plugin source code to a file
+	err = os.WriteFile(testPluginSourcePath, testPluginSource, os.ModePerm)
+	if err != nil {
+		t.Fatalf("failed to write test plugin file: %v", err)
+	}
 
-	})
+	// make sure the source file was actually written
+	fileInfo, err := os.Stat(testPluginSourcePath)
+	if err != nil {
+		t.Fatalf("failed to stat path: %v", err)
+	}
+	if fileInfo.IsDir() {
+		t.Fatalf("expected file but found directory")
+	}
+
+	// change to testing directory to run command
+	// err = os.Chdir(testPluginDir)
+	// if err != nil {
+	// 	t.Fatalf("failed to 'cd' to temporary directory: %v", err)
+	// }
+
+	// execute command to build the plugin
+	cmd := exec.Command("go", "build", "-buildmode=plugin", fmt.Sprintf("-o=%s", testPluginPath), testPluginSourcePath)
+	if output, err := cmd.Output(); err != nil {
+		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
+	}
+
+	// stat the file to confirm that the plugin was built
+	fileInfo, err = os.Stat(testPluginPath)
+	if err != nil {
+		t.Fatalf("failed to stat plugin file: %v", err)
+	}
+	if fileInfo.IsDir() {
+		t.Fatalf("directory file but a file was expected")
+	}
+	if fileInfo.Size() <= 0 {
+		t.Fatal("found an empty file or file with size of 0 bytes")
+	}
 
 	// test loading plugins both individually and in a dir
-	t.Run("load", func(t *testing.T) {
-		gen, err := generator.LoadPlugin(testPluginPath)
-		if err != nil {
-			t.Fatalf("failed to load the test plugin: %v", err)
-		}
+	gen, err := generator.LoadPlugin(testPluginSourcePath)
+	if err != nil {
+		t.Fatalf("failed to load the test plugin: %v", err)
+	}
 
-		// test that we have all expected methods with type assertions
+	// test that we have all expected methods with type assertions
+	if _, ok := gen.(interface {
+		GetName() string
+		GetVersion() string
+		GetDescription() string
+		Generate(*configurator.Config, ...util.Option) (generator.FileMap, error)
+	}); !ok {
+		t.Error("plugin does not implement all of the generator interface")
+	}
+
+	// test loading plugins from a directory (should just load a single one)
+	gens, err := generator.LoadPlugins(testPluginDir)
+	if err != nil {
+		t.Fatalf("failed to load plugins in '%s': %v", testPluginDir, err)
+	}
+
+	// test all of the plugins loaded from a directory (should expect same result as above)
+	for _, gen := range gens {
 		if _, ok := gen.(interface {
 			GetName() string
 			GetVersion() string
@@ -142,25 +189,7 @@ var Generator TestGenerator
 		}); !ok {
 			t.Error("plugin does not implement all of the generator interface")
 		}
-
-		// test loading plugins from a directory (should just load a single one)
-		gens, err := generator.LoadPlugins(tempDir)
-		if err != nil {
-			t.Fatalf("failed to load plugins in '%s': %v", tempDir, err)
-		}
-
-		// test all of the plugins loaded from a directory (should expect same result as above)
-		for _, gen := range gens {
-			if _, ok := gen.(interface {
-				GetName() string
-				GetVersion() string
-				GetDescription() string
-				Generate(*configurator.Config, ...util.Option) (generator.FileMap, error)
-			}); !ok {
-				t.Error("plugin does not implement all of the generator interface")
-			}
-		}
-	})
+	}
 
 }
 
@@ -184,7 +213,7 @@ func TestGenerateExample(t *testing.T) {
 		if gen.GetVersion() != "v1.0.0" {
 			t.Error("test generator return unexpected version")
 		}
-		if gen.GetDescription() != "test" {
+		if gen.GetDescription() != "This is a plugin creating for running tests." {
 			t.Error("test generator return unexpected description")
 		}
 	})

@@ -5,7 +5,7 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/OpenCHAMI/configurator/internal/generator"
+	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/spf13/cobra"
 )
 

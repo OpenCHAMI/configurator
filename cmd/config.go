@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	configurator "github.com/OpenCHAMI/configurator/internal"
-	"github.com/OpenCHAMI/configurator/internal/util"
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
 var configCmd = &cobra.Command{

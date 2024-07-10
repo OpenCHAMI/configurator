@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	configurator "github.com/OpenCHAMI/configurator/internal"
-	"github.com/OpenCHAMI/configurator/internal/generator"
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
