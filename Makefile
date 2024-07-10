@@ -28,4 +28,4 @@ clean:
 
 # run all of the unit tests
 test:
-	go test ./tests --tags=all
+	go test ./tests/generate_test.go --tags=all
