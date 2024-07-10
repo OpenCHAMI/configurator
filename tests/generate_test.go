@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -19,7 +20,7 @@ type TestGenerator struct{}
 func (g *TestGenerator) GetName() string    { return "test" }
 func (g *TestGenerator) GetVersion() string { return "v1.0.0" }
 func (g *TestGenerator) GetDescription() string {
-	return "This is a plugin creating for running tests."
+	return "This is a plugin created for running tests."
 }
 func (g *TestGenerator) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
 	// Jinja 2 template file
@@ -52,13 +53,18 @@ This is another testing Jinja 2 template file using {{plugin_name}}.
 		return nil, fmt.Errorf("expect at least one params, but found none")
 	}
 
-	// TODO: make sure we can get the target
+	// make sure we have a valid config we can access
+	if config == nil {
+		return nil, fmt.Errorf("invalid config (config is nil)")
+	}
 
-	// make sure we're able to get the client as well
+	// make sure we're able to get a valid client as well
 	client := generator.GetClient(params)
 	if client == nil {
 		return nil, fmt.Errorf("invalid client (client is nil)")
 	}
+
+	// TODO: make sure we can get a target
 
 	// make sure we have the same number of files in file list
 	if len(files) != len(fileList) {
@@ -74,16 +80,12 @@ This is another testing Jinja 2 template file using {{plugin_name}}.
 	return fileMap, nil
 }
 
-// An invalid generator that does not or partially implements
-// the `Generator` interface.
-type InvalidGenerator struct{}
-
 // Test building and loading plugins
 func TestPlugin(t *testing.T) {
 	var (
 		testPluginDir        = t.TempDir()
-		testPluginPath       = fmt.Sprintf("%s/testplugin.so", testPluginDir)
-		testPluginSourcePath = fmt.Sprintf("%s/testplugin.go", testPluginDir)
+		testPluginPath       = fmt.Sprintf("%s/test-plugin.so", testPluginDir)
+		testPluginSourcePath = fmt.Sprintf("%s/test-plugin.go", testPluginDir)
 		testPluginSource     = []byte(`
 package main
 
@@ -107,16 +109,22 @@ var Generator TestGenerator
 		`)
 	)
 
-	// make temporary directory to test plugin
-	err := os.MkdirAll(testPluginDir, os.ModeDir)
+	wd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("failed to make temporary directory: %v", err)
+		t.Errorf("failed to get working directory: %v", err)
 	}
 
 	// show all paths to make sure we're using the correct ones
-	fmt.Printf("test directory:             %v\n", testPluginDir)
-	fmt.Printf("test plugin path:           %v\n", testPluginPath)
-	fmt.Printf("test plugin source path:    %v\n", testPluginSourcePath)
+	fmt.Printf("(TestPlugin) working directory:     %v\n", wd)
+	fmt.Printf("(TestPlugin) plugin directory:      %v\n", testPluginDir)
+	fmt.Printf("(TestPlugin) plugin path:           %v\n", testPluginPath)
+	fmt.Printf("(TestPlugin) plugin source path:    %v\n", testPluginSourcePath)
+
+	// make temporary directory to test plugin
+	err = os.MkdirAll(testPluginDir, os.ModeDir)
+	if err != nil {
+		t.Fatalf("failed to make temporary directory: %v", err)
+	}
 
 	// dump the plugin source code to a file
 	err = os.WriteFile(testPluginSourcePath, testPluginSource, os.ModePerm)
@@ -134,10 +142,10 @@ var Generator TestGenerator
 	}
 
 	// change to testing directory to run command
-	// err = os.Chdir(testPluginDir)
-	// if err != nil {
-	// 	t.Fatalf("failed to 'cd' to temporary directory: %v", err)
-	// }
+	err = os.Chdir(testPluginDir)
+	if err != nil {
+		t.Fatalf("failed to 'cd' to temporary directory: %v", err)
+	}
 
 	// execute command to build the plugin
 	cmd := exec.Command("go", "build", "-buildmode=plugin", fmt.Sprintf("-o=%s", testPluginPath), testPluginSourcePath)
@@ -193,6 +201,97 @@ var Generator TestGenerator
 
 }
 
+// Test that expects to fail with a specific error using a partially
+// implemented generator. The purpose of this test is to make sure we're
+// seeing the correct error that we would expect in these situations.
+// The errors should be something like:
+//   - no symbol:      "failed to look up symbol at path"
+//   - invalid symbol: "failed to load the correct symbol type at path"
+func TestPluginWithInvalidOrNoSymbol(t *testing.T) {
+	var (
+		testPluginDir        = t.TempDir()
+		testPluginPath       = fmt.Sprintf("%s/invalid-plugin.so", testPluginDir)
+		testPluginSourcePath = fmt.Sprintf("%s/invalid-plugin.go", testPluginDir)
+		testPluginSource     = []byte(`
+package main
+
+import (
+	"fmt"
+
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/generator"
+	"github.com/OpenCHAMI/configurator/pkg/util"
+)
+
+// An invalid generator that does not or partially implements
+// the "Generator" interface.
+type InvalidGenerator struct{}
+var Generator TestGenerator
+		`)
+	)
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Errorf("failed to get working directory: %v", err)
+	}
+	// show all paths to make sure we're using the correct ones
+	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) working directory:     %v\n", wd)
+	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) plugin directory:             %v\n", testPluginDir)
+	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) plugin path:           %v\n", testPluginPath)
+	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) plugin source path:    %v\n", testPluginSourcePath)
+
+	// make temporary directory to test plugin
+	err = os.MkdirAll(testPluginDir, os.ModeDir)
+	if err != nil {
+		t.Fatalf("failed to make temporary directory: %v", err)
+	}
+
+	// dump the plugin source code to a file
+	err = os.WriteFile(testPluginSourcePath, testPluginSource, os.ModePerm)
+	if err != nil {
+		t.Fatalf("failed to write test plugin file: %v", err)
+	}
+
+	// make sure the source file was actually written
+	fileInfo, err := os.Stat(testPluginSourcePath)
+	if err != nil {
+		t.Fatalf("failed to stat path: %v", err)
+	}
+	if fileInfo.IsDir() {
+		t.Fatalf("expected file but found directory")
+	}
+
+	// change to testing directory to run command
+	err = os.Chdir(testPluginDir)
+	if err != nil {
+		t.Fatalf("failed to 'cd' to temporary directory: %v", err)
+	}
+
+	// execute command to build the plugin
+	cmd := exec.Command("go", "build", "-buildmode=plugin", fmt.Sprintf("-o=%s", testPluginPath), testPluginSourcePath)
+	if output, err := cmd.Output(); err != nil {
+		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
+	}
+
+	// stat the file to confirm that the plugin was built
+	fileInfo, err = os.Stat(testPluginPath)
+	if err != nil {
+		t.Fatalf("failed to stat plugin file: %v", err)
+	}
+	if fileInfo.IsDir() {
+		t.Fatalf("directory file but a file was expected")
+	}
+	if fileInfo.Size() <= 0 {
+		t.Fatal("found an empty file or file with size of 0 bytes")
+	}
+
+	// try and load plugin, but expect specific error
+	_, err = generator.LoadPlugin(testPluginSourcePath)
+	if err == nil {
+		t.Fatalf("expected an error, but returned nil")
+	}
+}
+
 // Test that expects to successfully "generate" a file using the built-in
 // example plugin with no fetching.
 //
@@ -238,19 +337,35 @@ func TestGenerateExample(t *testing.T) {
 // Test that expects to successfully "generate" a file using the built-in
 // example plugin but by making a HTTP request to a service instance instead.
 //
-// NOTE: This test uses the default server settings to run.
+// NOTE: This test uses the default server settings to run. Also, no need to
+// try and load the plugin from a lib here either.
 func TestGenerateExampleWithServer(t *testing.T) {
 	var (
 		config  = configurator.NewConfig()
+		client  = configurator.NewSmdClient()
 		gen     = TestGenerator{}
 		headers = make(map[string]string, 0)
 	)
 
-	// add a test target to config
-	config.Targets["test"] = configurator.Target{}
+	// NOTE: Currently, the server needs a config to know where to get load plugins,
+	// and how to handle targets/templates. This will be simplified in the future to
+	// decoupled the server from required a config altogether.
+	config.Targets["test"] = configurator.Target{
+		TemplatePaths: []string{},
+		FilePaths:     []string{},
+	}
 
-	// start up a new server in background
+	// show which targets are availabe in the config
+	fmt.Printf("targets:\n")
+	for target, _ := range config.Targets {
+		fmt.Printf("\t- %s\n", target)
+	}
+
+	// create new server, add test generator, and start in background
 	server := server.New(&config)
+	server.GeneratorParams.Generators = map[string]generator.Generator{
+		"test": &gen,
+	}
 	go server.Serve()
 
 	// make request to server to generate a file
@@ -263,22 +378,25 @@ func TestGenerateExampleWithServer(t *testing.T) {
 	}
 
 	// test for specific output from request
-	fileMap, err := gen.Generate(&config)
+	//
+	// NOTE: we don't actually use the config in this plugin implementation,
+	// but we do check that a valid config was passed.
+	fileMap, err := gen.Generate(
+		&config,
+		generator.WithClient(client),
+	)
 	if err != nil {
 		t.Fatalf("failed to generate file: %v", err)
 	}
-	if string(fileMap["test"]) != string(b) {
-		t.Fatal("response does not match expected output")
+	for path, contents := range fileMap {
+		tmp := make(map[string]string, 1)
+		err := json.Unmarshal(b, &tmp)
+		if err != nil {
+			t.Errorf("failed to unmarshal response: %v", err)
+			continue
+		}
+		if string(contents) != string(tmp[path]) {
+			t.Fatalf("response does not match expected output...\nexpected:%s\noutput:%s", string(contents), string(tmp[path]))
+		}
 	}
-
-}
-
-// Test that expects to fail with a specific error: "failed to loook up
-// symbol at path"
-func TestGenerateWithNoSymbol(t *testing.T) {
-}
-
-// Test that expects to fail with a specific error: "failed to load the
-// correct symbol type at path"
-func TestGenerateWithInvalidGenerator(t *testing.T) {
 }
