@@ -155,6 +155,17 @@ targets:        # targets to call with --target flag
 
 The `server` section sets the properties for running the `configurator` tool as a service and is not required if you're only using the CLI. Also note that the `jwks-uri` parameter is only needs for protecting endpoints. If it is not set, then the API is entirely public. The `smd` section tells the `configurator` tool where to find SMD to pull state management data used by the internal client. The `templates` section is where the paths are mapped to each generator plugin by its name (see the [`Creating Generator Plugins`](#creating-generator-plugins) section for details). The `plugins` is a list of paths to load generator plugins.
 
+## Running the Tests
+
+The `configurator` project includes a collection of tests focused on verifying plugin behavior and generating files. The tests do not currently test fetching information from SMD (or whatever remote source). The tests can be ran with either of the following commands:
+
+```bash
+go test ./tests/generate_test.go --tags=all
+# ...or alternatively with GNU make...
+make test
+```
+
+
 ## Known Issues
 
 - Adds a new `OAuthClient` with every token request

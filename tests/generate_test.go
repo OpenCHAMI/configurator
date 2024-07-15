@@ -90,8 +90,6 @@ func TestPlugin(t *testing.T) {
 package main
 
 import (
-	"fmt"
-
 	configurator "github.com/OpenCHAMI/configurator/pkg"
 	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/util"
@@ -121,7 +119,7 @@ var Generator TestGenerator
 	fmt.Printf("(TestPlugin) plugin source path:    %v\n", testPluginSourcePath)
 
 	// make temporary directory to test plugin
-	err = os.MkdirAll(testPluginDir, os.ModeDir)
+	err = os.MkdirAll(testPluginDir, 0o777)
 	if err != nil {
 		t.Fatalf("failed to make temporary directory: %v", err)
 	}
@@ -147,9 +145,21 @@ var Generator TestGenerator
 		t.Fatalf("failed to 'cd' to temporary directory: %v", err)
 	}
 
+	// initialize the plugin directory as a Go project
+	cmd := exec.Command("bash", "-c", "go mod init github.com/OpenCHAMI/configurator-test-plugin")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
+	}
+
+	// run `go mod tidy` for dependencies
+	cmd = exec.Command("bash", "-c", "go mod tidy")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
+	}
+
 	// execute command to build the plugin
-	cmd := exec.Command("go", "build", "-buildmode=plugin", fmt.Sprintf("-o=%s", testPluginPath), testPluginSourcePath)
-	if output, err := cmd.Output(); err != nil {
+	cmd = exec.Command("bash", "-c", "go build -buildmode=plugin -o=test-plugin.so test-plugin.go")
+	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
 	}
 
@@ -166,7 +176,7 @@ var Generator TestGenerator
 	}
 
 	// test loading plugins both individually and in a dir
-	gen, err := generator.LoadPlugin(testPluginSourcePath)
+	gen, err := generator.LoadPlugin("test-plugin.so")
 	if err != nil {
 		t.Fatalf("failed to load the test plugin: %v", err)
 	}
@@ -215,18 +225,11 @@ func TestPluginWithInvalidOrNoSymbol(t *testing.T) {
 		testPluginSource     = []byte(`
 package main
 
-import (
-	"fmt"
-
-	configurator "github.com/OpenCHAMI/configurator/pkg"
-	"github.com/OpenCHAMI/configurator/pkg/generator"
-	"github.com/OpenCHAMI/configurator/pkg/util"
-)
-
 // An invalid generator that does not or partially implements
 // the "Generator" interface.
 type InvalidGenerator struct{}
-var Generator TestGenerator
+func (g *InvalidGenerator) GetName() string { return "invalid" }
+var Generator InvalidGenerator
 		`)
 	)
 
@@ -236,7 +239,7 @@ var Generator TestGenerator
 	}
 	// show all paths to make sure we're using the correct ones
 	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) working directory:     %v\n", wd)
-	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) plugin directory:             %v\n", testPluginDir)
+	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) plugin directory:      %v\n", testPluginDir)
 	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) plugin path:           %v\n", testPluginPath)
 	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) plugin source path:    %v\n", testPluginSourcePath)
 
@@ -267,9 +270,21 @@ var Generator TestGenerator
 		t.Fatalf("failed to 'cd' to temporary directory: %v", err)
 	}
 
+	// initialize the plugin directory as a Go project
+	cmd := exec.Command("bash", "-c", "go mod init github.com/OpenCHAMI/configurator-test-plugin")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
+	}
+
+	// run `go mod tidy` for dependencies
+	cmd = exec.Command("bash", "-c", "go mod tidy")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
+	}
+
 	// execute command to build the plugin
-	cmd := exec.Command("go", "build", "-buildmode=plugin", fmt.Sprintf("-o=%s", testPluginPath), testPluginSourcePath)
-	if output, err := cmd.Output(); err != nil {
+	cmd = exec.Command("bash", "-c", "go build -buildmode=plugin -o=invalid-plugin.so invalid-plugin.go")
+	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
 	}
 
@@ -312,7 +327,7 @@ func TestGenerateExample(t *testing.T) {
 		if gen.GetVersion() != "v1.0.0" {
 			t.Error("test generator return unexpected version")
 		}
-		if gen.GetDescription() != "This is a plugin creating for running tests." {
+		if gen.GetDescription() != "This is a plugin created for running tests." {
 			t.Error("test generator return unexpected description")
 		}
 	})
@@ -353,12 +368,6 @@ func TestGenerateExampleWithServer(t *testing.T) {
 	config.Targets["test"] = configurator.Target{
 		TemplatePaths: []string{},
 		FilePaths:     []string{},
-	}
-
-	// show which targets are availabe in the config
-	fmt.Printf("targets:\n")
-	for target, _ := range config.Targets {
-		fmt.Printf("\t- %s\n", target)
 	}
 
 	// create new server, add test generator, and start in background
