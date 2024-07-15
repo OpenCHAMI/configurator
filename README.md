@@ -162,7 +162,7 @@ The `configurator` project includes a collection of tests focused on verifying p
 ```bash
 go test ./tests/generate_test.go --tags=all
 # ...or alternatively with GNU make...
-make tests
+make test
 ```
 
 
