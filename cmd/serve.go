@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/OpenCHAMI/configurator/internal/generator"
-	"github.com/OpenCHAMI/configurator/internal/server"
+	"github.com/OpenCHAMI/configurator/pkg/generator"
+	"github.com/OpenCHAMI/configurator/pkg/server"
 	"github.com/spf13/cobra"
 )
 
