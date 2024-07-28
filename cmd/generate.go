@@ -81,7 +81,7 @@ func RunTargets(config *configurator.Config, args []string, targets ...string) {
 			Target:      target,
 			Verbose:     verbose,
 		}
-		outputBytes, err := generator.Generate(config, params)
+		outputBytes, err := generator.GenerateWithTarget(config, params)
 		if err != nil {
 			fmt.Printf("failed to generate config: %v\n", err)
 			os.Exit(1)
