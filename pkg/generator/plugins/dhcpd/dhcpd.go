@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	configurator "github.com/OpenCHAMI/configurator/internal"
-	"github.com/OpenCHAMI/configurator/internal/generator"
-	"github.com/OpenCHAMI/configurator/internal/util"
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/generator"
+	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
 type Dhcpd struct{}
@@ -70,7 +70,7 @@ func (g *Dhcpd) Generate(config *configurator.Config, opts ...util.Option) (gene
 		"plugin_description": g.GetDescription(),
 		"compute_nodes":      compute_nodes,
 		"node_entries":       "",
-	}, target.Templates...)
+	}, target.TemplatePaths...)
 }
 
 var Generator Dhcpd
