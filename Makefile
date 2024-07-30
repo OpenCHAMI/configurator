@@ -13,6 +13,9 @@ exe:
 docker: binaries plugins
 	docker build . --build-arg REGISTRY_HOST=${REGISTRY_HOST} --no-cache --pull --tag '${NAME}:${VERSION}'
 
+docker-testing: binaries plugins
+	docker build . --tag configurator:testing
+
 # build all of the generators into plugins
 plugins:
 	mkdir -p lib
