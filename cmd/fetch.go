@@ -6,9 +6,10 @@ package cmd
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/OpenCHAMI/configurator/pkg/util"
-	"github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -25,8 +26,22 @@ var fetchCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// make sure a host is set
 		if remoteHost == "" {
-			logrus.Errorf("no '--host' argument set")
+			log.Error().Msg("no '--host' argument set")
 			return
+		}
+
+		// check to see if an access token is available from env
+		if config.AccessToken == "" {
+			// check if OCHAMI_ACCESS_TOKEN env var is set if no access token is provided and use that instead
+			accessToken := os.Getenv("ACCESS_TOKEN")
+			if accessToken != "" {
+				config.AccessToken = accessToken
+			} else {
+				// TODO: try and fetch token first if it is needed
+				if verbose {
+					fmt.Printf("No token found. Attempting to generate config without one...\n")
+				}
+			}
 		}
 
 		// add the "Authorization" header if an access token is supplied
@@ -40,13 +55,13 @@ var fetchCmd = &cobra.Command{
 			url := fmt.Sprintf("%s:%d/generate?target=%s", remoteHost, remotePort, target)
 			res, body, err := util.MakeRequest(url, http.MethodGet, nil, headers)
 			if err != nil {
-				logrus.Errorf("failed to make request: %v", err)
+				log.Error().Err(err).Msg("failed to make request")
 				return
 			}
 			// handle getting other error codes other than a 200
 			if res != nil {
 				if res.StatusCode == http.StatusOK {
-					fmt.Printf("%s\n", string(body))
+					log.Info().Msgf("%s\n", string(body))
 				}
 			}
 		}
