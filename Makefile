@@ -11,7 +11,7 @@ exe:
 
 
 docker: binaries plugins
-	docker build -t configurator:latest .
+	docker build . --build-arg REGISTRY_HOST=${REGISTRY_HOST} --no-cache --pull --tag '${NAME}:${VERSION}'
 
 # build all of the generators into plugins
 plugins:
