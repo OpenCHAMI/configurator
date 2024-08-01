@@ -50,6 +50,30 @@ curl http://127.0.0.1:3334/generate?target=dnsmasq -H "Authorization: Bearer $AC
 
 This will do the same thing as the `generate` subcommand, but remotely. The access token is only required if the `CONFIGURATOR_JWKS_URL` environment variable is set. The `ACCESS_TOKEN` environment variable passed to `curl` and it's corresponding CLI argument both expects a token as a JWT.
 
+### Docker
+
+New images can be built and tested using the `Dockerfile` provided in the project. However, the binary executable and the generator plugins must first be built before building the image since the Docker build copies the binary over. Therefore, build all of the binaries first by following the first section of ["Building and Usage"](#building-and-usage). If you run the `make docker`, this will be done for you. Otherwise, run the `docker build` command after building the executable and libraries.
+
+```bash
+docker build -t configurator:testing path/to/configurator/Dockerfile
+# ...or
+make docker
+```
+
+Keep in mind that all plugins included in the project are build in the `lib/` directory and copied from there. If you want to easily include your own external generator plugins, you can build it and copy the `lib.so` file to that location. Make sure that the `Generator` interface is implemented correct as described in the ["Creating Generator Plugins"](#creating-generator-plugins) or the plugin will not load. Additionally, the name string returned from the `GetName()` method is used for looking up the plugin after all plugins have been loaded by the main driver.
+
+Alternatively, pull the latest existing image/container from the GitHub container repository.
+
+```bash
+docker pull ghcr.io/openchami/configurator:latest
+```
+
+Then, run the container similarly to the binary.
+
+```
+docker run ghcr.io/openchami/configurator:latest configurator generate --config config.yaml --target dnsmasq
+```
+
 ### Creating Generator Plugins
 
 The `configurator` uses generator plugins to define how config files are generated using a `Generator` interface.  The interface is defined like so:
@@ -64,7 +88,7 @@ type Generator interface {
 }
 ```
 
-A new plugin can be created by implementing the methods from interface and exporting a symbol with `Generator` as the name and the plugin struct as the type. The `GetName()` function returns the name that is used for looking up the corresponding template set in your config file. It can also be included in the templated files with the default plugins using the `{{ plugin_name }}` in your template. The `GetVersion()` and `GetDescription()` functions returns the version and description of the plugin which can be included in the templated files using `{{ plugin_version }}` and `{{ plugin_description }}` respectively with the default plugins. The `Generate` function is where the magic happens to build the config file from a template.
+A new plugin can be created by implementing the methods from interface and exporting a symbol with `Generator` as the name and the plugin struct as the type. The `GetName()` function returns the name that is used for looking up the corresponding target set in your config file. It can also be included in the templated files with the default plugins using the `{{ plugin_name }}` in your template. The `GetVersion()` and `GetDescription()` functions returns the version and description of the plugin which can be included in the templated files using `{{ plugin_version }}` and `{{ plugin_description }}` respectively with the default plugins. The `Generate` function is where the magic happens to build the config file from a template.
 
 ```go
 package main
