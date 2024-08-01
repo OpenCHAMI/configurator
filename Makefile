@@ -48,5 +48,5 @@ clean:
 
 # run all of the unit tests
 .PHONY: test
-test:
+test: $(prog) $(plugin_binaries)
 	go test ./tests/generate_test.go --tags=all
