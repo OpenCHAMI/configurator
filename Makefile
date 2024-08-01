@@ -21,7 +21,7 @@ exe: $(prog)
 
 # build named executable from go sources
 $(prog): $(sources)
-    go build --tags=all -o $(prog)
+	go build --tags=all -o $(prog)
 
 .PHONY: container
 container: binaries plugins
