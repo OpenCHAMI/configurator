@@ -2,6 +2,7 @@
 DOCKER ?= docker
 
 prog ?= configurator
+git_tag := $(git describe --abbrev=0 --tags)
 sources := main.go $(wildcard cmd/*.go)
 plugin_source_prefix := pkg/generator/plugins
 plugin_sources := $(filter-out %_test.go,$(wildcard $(plugin_source_prefix)/*/*.go))
@@ -24,11 +25,11 @@ $(prog): $(sources)
 
 .PHONY: container
 container: binaries plugins
-	$(DOCKER) build . --build-arg --no-cache --pull --tag 'configurator:testing'
+	$(DOCKER) build . --build-arg --no-cache --pull --tag '$(prog):$(git_tag)-dirty'
 
 .PHONY: container-testing
 container-testing: binaries plugins
-	$(DOCKER) build . --tag configurator:testing
+	$(DOCKER) build . --tag $(prog):testing
 
 # build all of the generators into plugins
 .PHONY: plugins
