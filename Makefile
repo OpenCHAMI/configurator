@@ -1,39 +1,51 @@
+# Unless set otherwise, the container runtime is Docker
+DOCKER ?= docker
+
+prog ?= configurator
+sources := main.go $(wildcard cmd/*.go)
+plugin_source_prefix := pkg/generator/plugins
+plugin_sources := $(filter-out %_test.go,$(wildcard $(plugin_source_prefix)/*/*.go))
+plugin_binaries := $(addprefix lib/,$(patsubst %.go,%.so,$(notdir $(plugin_sources))))
 
 # build everything at once
+.PHONY: all
 all: plugins exe test
 
 # build the main executable to make configs
+.PHONY: main driver binaries exe
 main: exe
 driver: exe
 binaries: exe
-exe:
-	go build --tags=all -o configurator
+exe: $(prog)
 
+# build named executable from go sources
+$(prog): $(sources)
+    go build --tags=all -o $(prog)
 
-docker: binaries plugins
-	docker build . --build-arg REGISTRY_HOST=${REGISTRY_HOST} --no-cache --pull --tag '${NAME}:${VERSION}'
+.PHONY: container
+container: binaries plugins
+	$(DOCKER) build . --build-arg --no-cache --pull --tag 'configurator:testing'
 
-docker-testing: binaries plugins
-	docker build . --tag configurator:testing
+.PHONY: container-testing
+container-testing: binaries plugins
+	$(DOCKER) build . --tag configurator:testing
 
 # build all of the generators into plugins
-plugins:
+.PHONY: plugins
+plugins: $(plugin_binaries)
+
+# how to make each plugin
+lib/%.so: pkg/generator/plugins/%/*.go
 	mkdir -p lib
-	go build -buildmode=plugin -o lib/conman.so pkg/generator/plugins/conman/conman.go
-	go build -buildmode=plugin -o lib/coredhcp.so pkg/generator/plugins/coredhcp/coredhcp.go
-	go build -buildmode=plugin -o lib/dhcpd.so pkg/generator/plugins/dhcpd/dhcpd.go
-	go build -buildmode=plugin -o lib/dnsmasq.so pkg/generator/plugins/dnsmasq/dnsmasq.go
-	go build -buildmode=plugin -o lib/example.so pkg/generator/plugins/example/example.go
-	go build -buildmode=plugin -o lib/hostfile.so pkg/generator/plugins/hostfile/hostfile.go
-	go build -buildmode=plugin -o lib/powerman.so pkg/generator/plugins/powerman/powerman.go
-	go build -buildmode=plugin -o lib/syslog.so pkg/generator/plugins/syslog/syslog.go
-	go build -buildmode=plugin -o lib/warewulf.so pkg/generator/plugins/warewulf/warewulf.go
+	go build -buildmode=plugin -o $@ $<
 
 # remove executable and all built plugins
+.PHONY: clean
 clean:
-	rm configurator
-	rm lib/*
+	rm -f configurator
+	rm -f lib/*
 
 # run all of the unit tests
+.PHONY: test
 test:
 	go test ./tests/generate_test.go --tags=all
