@@ -102,7 +102,7 @@ func NewParams() util.Params {
 // service SMD_JWKS_URL envirnoment variable is set.
 func (client *SmdClient) FetchEthernetInterfaces(opts ...util.Option) ([]EthernetInterface, error) {
 	var (
-		params  = util.GetParams(opts...)
+		params  = util.ToDict(opts...)
 		verbose = util.Get[bool](params, "verbose")
 		eths    = []EthernetInterface{}
 	)
@@ -132,7 +132,7 @@ func (client *SmdClient) FetchEthernetInterfaces(opts ...util.Option) ([]Etherne
 // service SMD_JWKS_URL envirnoment variable is set.
 func (client *SmdClient) FetchComponents(opts ...util.Option) ([]Component, error) {
 	var (
-		params  = util.GetParams(opts...)
+		params  = util.ToDict(opts...)
 		verbose = util.Get[bool](params, "verbose")
 		comps   = []Component{}
 	)
@@ -174,7 +174,7 @@ func (client *SmdClient) FetchComponents(opts ...util.Option) ([]Component, erro
 
 func (client *SmdClient) FetchRedfishEndpoints(opts ...util.Option) ([]RedfishEndpoint, error) {
 	var (
-		params  = util.GetParams(opts...)
+		params  = util.ToDict(opts...)
 		verbose = util.Get[bool](params, "verbose")
 		eps     = []RedfishEndpoint{}
 	)
