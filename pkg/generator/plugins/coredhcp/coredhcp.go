@@ -19,7 +19,7 @@ func (g *CoreDhcp) GetVersion() string {
 }
 
 func (g *CoreDhcp) GetDescription() string {
-	return fmt.Sprintf("Configurator generator plugin for '%s' to generate config files. This plugin is not complete and still a WIP.", g.GetName())
+	return fmt.Sprintf("Configurator generator plugin for '%s' to generate config files. (WIP)", g.GetName())
 }
 
 func (g *CoreDhcp) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {

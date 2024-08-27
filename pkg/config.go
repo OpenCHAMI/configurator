@@ -11,6 +11,7 @@ import (
 type Options struct{}
 
 type Target struct {
+	PluginPath    string   `yaml:"plugin,omitempty"`
 	TemplatePaths []string `yaml:"templates,omitempty"`
 	FilePaths     []string `yaml:"files,omitempty"`
 	RunTargets    []string `yaml:"targets,omitempty"`
@@ -18,24 +19,24 @@ type Target struct {
 
 type Jwks struct {
 	Uri     string `yaml:"uri"`
-	Retries int    `yaml:"retries"`
+	Retries int    `yaml:"retries,omitempty"`
 }
 
 type Server struct {
 	Host string `yaml:"host"`
 	Port int    `yaml:"port"`
-	Jwks Jwks   `yaml:"jwks"`
+	Jwks Jwks   `yaml:"jwks,omitempty"`
 }
 
 type Config struct {
-	Version     string            `yaml:"version"`
-	Server      Server            `yaml:"server"`
-	SmdClient   SmdClient         `yaml:"smd"`
-	AccessToken string            `yaml:"access-token"`
-	Targets     map[string]Target `yaml:"targets"`
-	PluginDirs  []string          `yaml:"plugins"`
-	CertPath    string            `yaml:"ca-cert"`
-	Options     Options           `yaml:"options"`
+	Version     string            `yaml:"version,omitempty"`
+	Server      Server            `yaml:"server,omitempty"`
+	SmdClient   SmdClient         `yaml:"smd,omitempty"`
+	AccessToken string            `yaml:"access-token,omitempty"`
+	Targets     map[string]Target `yaml:"targets,omitempty"`
+	PluginDirs  []string          `yaml:"plugins,omitempty"`
+	CertPath    string            `yaml:"cacert,omitempty"`
+	Options     Options           `yaml:"options,omitempty"`
 }
 
 // Creates a new config with default parameters.
@@ -48,12 +49,15 @@ func NewConfig() Config {
 		},
 		Targets: map[string]Target{
 			"dnsmasq": Target{
+				PluginPath:    "",
 				TemplatePaths: []string{},
 			},
 			"conman": Target{
+				PluginPath:    "",
 				TemplatePaths: []string{},
 			},
 			"warewulf": Target{
+				PluginPath: "",
 				TemplatePaths: []string{
 					"templates/warewulf/defaults/node.jinja",
 					"templates/warewulf/defaults/provision.jinja",
