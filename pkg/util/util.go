@@ -2,12 +2,14 @@ package util
 
 import (
 	"bytes"
+	"cmp"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -28,7 +30,7 @@ func IsDirectory(path string) (bool, error) {
 	// This returns an *os.FileInfo type
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		return false, fmt.Errorf("failed to stat path: %v", err)
+		return false, fmt.Errorf("failed to stat path (%s): %v", path, err)
 	}
 
 	// IsDir is short for fileInfo.Mode().IsDir()
@@ -63,7 +65,7 @@ func MakeRequest(url string, httpMethod string, body []byte, headers map[string]
 // NOTE: This currently requires git to be installed.
 // TODO: Change how this is done to not require executing a command.
 func GitCommit() string {
-	c := exec.Command("git", "rev-parse", "HEAD")
+	c := exec.Command("git", "rev-parse", "--short=8", "HEAD")
 	stdout, err := c.Output()
 	if err != nil {
 		return ""
@@ -78,6 +80,11 @@ func RemoveIndex[T comparable](s []T, index int) []T {
 	ret := make([]T, 0)
 	ret = append(ret, s[:index]...)
 	return append(ret, s[index+1:]...)
+}
+
+func RemoveDuplicates[T cmp.Ordered](s []T) []T {
+	slices.Sort(s)
+	return slices.Compact(s)
 }
 
 // General function to copy elements from slice if condition is true.

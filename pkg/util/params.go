@@ -11,7 +11,7 @@ type Params map[string]any
 type Option func(Params)
 
 // Extract all parameters from the options passed as map[string]any.
-func GetParams(opts ...Option) Params {
+func ToDict(opts ...Option) Params {
 	params := Params{}
 	for _, opt := range opts {
 		opt(params)
@@ -45,8 +45,8 @@ func WithDefault[T any](v T) Option {
 	}
 }
 
-// Syntactic sugar generic function to get parameter from util.Params.
-func Get[T any](params Params, key string, opts ...Option) *T {
+// Sugary generic function to get parameter from util.Params.
+func Get[T any](params Params, key string) *T {
 	if v, ok := params[key].(T); ok {
 		return &v
 	}
@@ -54,4 +54,17 @@ func Get[T any](params Params, key string, opts ...Option) *T {
 		return &defaultValue
 	}
 	return nil
+}
+
+func GetOpt[T any](opts []Option, key string) *T {
+	return Get[T](ToDict(opts...), "required_claims")
+}
+
+func (p Params) GetVerbose() bool {
+	if verbose, ok := p["verbose"].(bool); ok {
+		return verbose
+	}
+
+	// default setting
+	return false
 }
