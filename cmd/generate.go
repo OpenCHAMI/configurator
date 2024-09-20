@@ -12,12 +12,14 @@ import (
 	configurator "github.com/OpenCHAMI/configurator/pkg"
 	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/util"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
 var (
 	tokenFetchRetries int
-	pluginPaths       []string
+	templatePaths     []string
+	pluginPath        string
 	cacertPath        string
 )
 
@@ -27,8 +29,6 @@ var generateCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// make sure that we have a token present before trying to make request
 		if config.AccessToken == "" {
-			// TODO: make request to check if request will need token
-
 			// check if OCHAMI_ACCESS_TOKEN env var is set if no access token is provided and use that instead
 			accessToken := os.Getenv("ACCESS_TOKEN")
 			if accessToken != "" {
@@ -42,14 +42,8 @@ var generateCmd = &cobra.Command{
 		}
 
 		// use cert path from cobra if empty
-		// TODO: this needs to be checked for the correct desired behavior
 		if config.CertPath == "" {
 			config.CertPath = cacertPath
-		}
-
-		// use config plugins if none supplied via CLI
-		if len(pluginPaths) <= 0 {
-			pluginPaths = append(pluginPaths, config.PluginDirs...)
 		}
 
 		// show config as JSON and generators if verbose
@@ -61,8 +55,22 @@ var generateCmd = &cobra.Command{
 			fmt.Printf("%v\n", string(b))
 		}
 
-		RunTargets(&config, args, targets...)
+		// run all of the target recursively until completion if provided
+		if len(targets) > 0 {
+			RunTargets(&config, args, targets...)
+		} else {
+			if pluginPath == "" {
+				fmt.Printf("no plugin path specified")
+				return
+			}
 
+			// run generator.Generate() with just plugin path and templates provided
+			generator.Generate(&config, generator.Params{
+				PluginPath:    pluginPath,
+				TemplatePaths: templatePaths,
+			})
+
+		}
 	},
 }
 
@@ -75,22 +83,20 @@ var generateCmd = &cobra.Command{
 func RunTargets(config *configurator.Config, args []string, targets ...string) {
 	// generate config with each supplied target
 	for _, target := range targets {
-		params := generator.Params{
-			Args:        args,
-			PluginPaths: pluginPaths,
-			Target:      target,
-			Verbose:     verbose,
-		}
-		outputBytes, err := generator.GenerateWithTarget(config, params)
+		outputBytes, err := generator.GenerateWithTarget(config, generator.Params{
+			Args:       args,
+			PluginPath: pluginPath,
+			Target:     target,
+			Verbose:    verbose,
+		})
 		if err != nil {
-			fmt.Printf("failed to generate config: %v\n", err)
+			log.Error().Err(err).Msg("failed to generate config")
 			os.Exit(1)
 		}
 
-		outputMap := generator.ConvertContentsToString(outputBytes)
-
 		// if we have more than one target and output is set, create configs in directory
 		var (
+			outputMap     = generator.ConvertContentsToString(outputBytes)
 			targetCount   = len(targets)
 			templateCount = len(outputMap)
 		)
@@ -110,16 +116,16 @@ func RunTargets(config *configurator.Config, args []string, targets ...string) {
 			for _, contents := range outputBytes {
 				err := os.WriteFile(outputPath, contents, 0o644)
 				if err != nil {
-					fmt.Printf("failed to write config to file: %v", err)
+					log.Error().Err(err).Msg("failed to write config to file")
 					os.Exit(1)
 				}
-				fmt.Printf("wrote file to '%s'\n", outputPath)
+				log.Info().Msgf("wrote file to '%s'\n", outputPath)
 			}
 		} else if outputPath != "" && targetCount > 1 || templateCount > 1 {
 			// write multiple files in directory using template name
 			err := os.MkdirAll(filepath.Clean(outputPath), 0o755)
 			if err != nil {
-				fmt.Printf("failed to make output directory: %v\n", err)
+				log.Error().Err(err).Msg("failed to make output directory")
 				os.Exit(1)
 			}
 			for path, contents := range outputBytes {
@@ -127,15 +133,17 @@ func RunTargets(config *configurator.Config, args []string, targets ...string) {
 				cleanPath := fmt.Sprintf("%s/%s", filepath.Clean(outputPath), filename)
 				err := os.WriteFile(cleanPath, contents, 0o755)
 				if err != nil {
-					fmt.Printf("failed to write config to file: %v\n", err)
+					log.Error().Err(err).Msg("failed to write config to file")
 					os.Exit(1)
 				}
-				fmt.Printf("wrote file to '%s'\n", cleanPath)
+				log.Info().Msgf("wrote file to '%s'\n", cleanPath)
 			}
 		}
 
 		// remove any targets that are the same as current to prevent infinite loop
-		nextTargets := util.CopyIf(config.Targets[target].RunTargets, func(t string) bool { return t != target })
+		nextTargets := util.CopyIf(config.Targets[target].RunTargets, func(nextTarget string) bool {
+			return nextTarget != target
+		})
 
 		// ...then, run any other targets that the current target has
 		RunTargets(config, args, nextTargets...)
@@ -143,11 +151,20 @@ func RunTargets(config *configurator.Config, args []string, targets ...string) {
 }
 
 func init() {
-	generateCmd.Flags().StringSliceVar(&targets, "target", []string{}, "set the target configs to make")
-	generateCmd.Flags().StringSliceVar(&pluginPaths, "plugins", []string{}, "set the generator plugins directory path")
+	generateCmd.Flags().StringSliceVar(&targets, "target", []string{}, "set the targets to run pre-defined config")
+	generateCmd.Flags().StringSliceVar(&templatePaths, "template", []string{}, "set the paths for the Jinja 2 templates to use")
+	generateCmd.Flags().StringVar(&pluginPath, "plugin", "", "set the generator plugin path")
 	generateCmd.Flags().StringVarP(&outputPath, "output", "o", "", "set the output path for config targets")
-	generateCmd.Flags().StringVar(&cacertPath, "ca-cert", "", "path to CA cert. (defaults to system CAs)")
+	generateCmd.Flags().StringVar(&cacertPath, "cacert", "", "path to CA cert. (defaults to system CAs)")
 	generateCmd.Flags().IntVar(&tokenFetchRetries, "fetch-retries", 5, "set the number of retries to fetch an access token")
+	generateCmd.Flags().StringVar(&remoteHost, "host", "http://localhost", "set the remote host")
+	generateCmd.Flags().IntVar(&remotePort, "port", 80, "set the remote port")
+
+	// requires either 'target' by itself or 'plugin' and 'templates' together
+	// generateCmd.MarkFlagsOneRequired("target", "plugin")
+	generateCmd.MarkFlagsMutuallyExclusive("target", "plugin")
+	generateCmd.MarkFlagsMutuallyExclusive("target", "template")
+	generateCmd.MarkFlagsRequiredTogether("plugin", "template")
 
 	rootCmd.AddCommand(generateCmd)
 }
