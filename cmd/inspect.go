@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/OpenCHAMI/configurator/pkg/generator"
+	"github.com/OpenCHAMI/configurator/pkg/util"
 	"github.com/rodaine/table"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -26,11 +27,16 @@ var inspectCmd = &cobra.Command{
 			return strings.ToUpper(fmt.Sprintf(format, vals...))
 		}
 
-		// TODO: remove duplicate args from CLI
+		// remove duplicate clean paths from CLI
+		paths := make([]string, len(args))
+		for _, path := range args {
+			paths = append(paths, filepath.Clean(path))
+		}
+		paths = util.RemoveDuplicates(paths)
 
 		// load specific plugins from positional args
 		var generators = make(map[string]generator.Generator)
-		for _, path := range args {
+		for _, path := range paths {
 			err := filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
 				if err != nil {
 					return err
