@@ -37,7 +37,7 @@ func (g *Dhcpd) Generate(config *configurator.Config, opts ...util.Option) (gene
 	if client != nil {
 		eths, err = client.FetchEthernetInterfaces(opts...)
 		if err != nil {
-			return nil, fmt.Errorf("failed to fetch ethernet interfaces with client: %v", err)
+			return nil, fmt.Errorf("failed to fetch ethernet interfaces with client: %w", err)
 		}
 	}
 
