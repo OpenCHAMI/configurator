@@ -13,12 +13,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	accessToken string
-	remoteHost  string
-	remotePort  int
-)
-
 var fetchCmd = &cobra.Command{
 	Use:   "fetch",
 	Short: "Fetch a config file from a remote instance of configurator",
