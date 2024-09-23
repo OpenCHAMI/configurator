@@ -24,11 +24,11 @@ $(prog): $(sources)
 	go build --tags=all -o $(prog)
 
 .PHONY: container
-container: binaries plugins
+container: binaries
 	$(DOCKER) build . --build-arg --no-cache --pull --tag '$(prog):$(git_tag)-dirty'
 
 .PHONY: container-testing
-container-testing: binaries plugins
+container-testing: binaries
 	$(DOCKER) build . --tag $(prog):testing
 
 # build all of the generators into plugins
