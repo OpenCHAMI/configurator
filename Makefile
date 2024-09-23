@@ -16,7 +16,7 @@ all: plugins exe test
 .PHONY: main driver binaries exe
 main: exe
 driver: exe
-binaries: exe
+binaries: exe plugins
 exe: $(prog)
 
 # build named executable from go sources
