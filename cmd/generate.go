@@ -21,6 +21,7 @@ var (
 	templatePaths     []string
 	pluginPath        string
 	cacertPath        string
+	useCompression    bool
 )
 
 var generateCmd = &cobra.Command{
@@ -121,6 +122,25 @@ func RunTargets(config *configurator.Config, args []string, targets ...string) {
 				}
 				log.Info().Msgf("wrote file to '%s'\n", outputPath)
 			}
+		} else if outputPath != "" && targetCount > 1 && useCompression {
+			// write multiple files to archive, compress, then save to output path
+			out, err := os.Create(fmt.Sprintf("%s.tar.gz", outputPath))
+			if err != nil {
+				log.Error().Err(err).Msg("failed to write archive")
+				os.Exit(1)
+			}
+			files := make([]string, len(outputBytes))
+			i := 0
+			for path := range outputBytes {
+				files[i] = path
+				i++
+			}
+			err = util.CreateArchive(files, out)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to create archive")
+				os.Exit(1)
+			}
+
 		} else if outputPath != "" && targetCount > 1 || templateCount > 1 {
 			// write multiple files in directory using template name
 			err := os.MkdirAll(filepath.Clean(outputPath), 0o755)
@@ -159,6 +179,7 @@ func init() {
 	generateCmd.Flags().IntVar(&tokenFetchRetries, "fetch-retries", 5, "set the number of retries to fetch an access token")
 	generateCmd.Flags().StringVar(&remoteHost, "host", "http://localhost", "set the remote host")
 	generateCmd.Flags().IntVar(&remotePort, "port", 80, "set the remote port")
+	generateCmd.Flags().BoolVar(&useCompression, "compress", false, "set whether to archive and compress multiple file outputs")
 
 	// requires either 'target' by itself or 'plugin' and 'templates' together
 	// generateCmd.MarkFlagsOneRequired("target", "plugin")
