@@ -2,7 +2,7 @@
 DOCKER ?= docker
 
 prog ?= configurator
-git_tag := $(shell git describe --abbrev=0 --tags)
+git_tag := $(shell git describe --abbrev=0 --tags --always)
 sources := main.go $(wildcard cmd/*.go)
 plugin_source_prefix := pkg/generator/plugins
 plugin_sources := $(filter-out %_test.go,$(wildcard $(plugin_source_prefix)/*/*.go))
