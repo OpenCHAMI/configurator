@@ -1,35 +1,56 @@
+# Unless set otherwise, the container runtime is Docker
+DOCKER ?= docker
+
+prog ?= configurator
+git_tag := $(shell git describe --abbrev=0 --tags --always)
+sources := main.go $(wildcard cmd/*.go)
+plugin_source_prefix := pkg/generator/plugins
+plugin_sources := $(filter-out %_test.go,$(wildcard $(plugin_source_prefix)/*/*.go))
+plugin_binaries := $(addprefix lib/,$(patsubst %.go,%.so,$(notdir $(plugin_sources))))
 
 # build everything at once
+.PHONY: all
 all: plugins exe test
 
 # build the main executable to make configs
+.PHONY: main driver binaries exe
 main: exe
 driver: exe
-exe:
-	go build --tags=all -o configurator
+binaries: exe plugins
+exe: $(prog)
+
+# build named executable from go sources
+$(prog): $(sources)
+	go build --tags=all -o $(prog)
+
+.PHONY: container
+container: binaries
+	$(DOCKER) build . --build-arg --no-cache --pull --tag '$(prog):$(git_tag)-dirty'
+
+.PHONY: container-testing
+container-testing: binaries
+	$(DOCKER) build . --tag $(prog):testing
 
 # build all of the generators into plugins
-plugins:
+.PHONY: plugins
+plugins: $(plugin_binaries)
+
+# how to make each plugin
+lib/%.so: pkg/generator/plugins/%/*.go
 	mkdir -p lib
-	go build -buildmode=plugin -o lib/conman.so pkg/generator/plugins/conman/conman.go
-	go build -buildmode=plugin -o lib/coredhcp.so pkg/generator/plugins/coredhcp/coredhcp.go
-	go build -buildmode=plugin -o lib/dhcpd.so pkg/generator/plugins/dhcpd/dhcpd.go
-	go build -buildmode=plugin -o lib/dnsmasq.so pkg/generator/plugins/dnsmasq/dnsmasq.go
-	go build -buildmode=plugin -o lib/example.so pkg/generator/plugins/example/example.go
-	go build -buildmode=plugin -o lib/hostfile.so pkg/generator/plugins/hostfile/hostfile.go
-	go build -buildmode=plugin -o lib/powerman.so pkg/generator/plugins/powerman/powerman.go
-	go build -buildmode=plugin -o lib/syslog.so pkg/generator/plugins/syslog/syslog.go
-	go build -buildmode=plugin -o lib/warewulf.so pkg/generator/plugins/warewulf/warewulf.go
+	go build -buildmode=plugin -o $@ $<
 
 docs:
 	go doc github.com/OpenCHAMI/cmd
 	go doc github.com/OpenCHAMI/pkg/configurator
 
 # remove executable and all built plugins
+.PHONY: clean
 clean:
-	rm configurator
-	rm lib/*
+	rm -f configurator
+	rm -f lib/*
 
 # run all of the unit tests
-test:
+.PHONY: test
+test: $(prog) $(plugin_binaries)
 	go test ./tests/generate_test.go --tags=all
