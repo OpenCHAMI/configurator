@@ -2,17 +2,18 @@ package cmd
 
 import (
 	"fmt"
-	"maps"
+	"io/fs"
+	"path/filepath"
 	"strings"
 
 	"github.com/OpenCHAMI/configurator/pkg/generator"
+	"github.com/rodaine/table"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
 var (
-	byTarget   bool
-	pluginDirs []string
-	generators map[string]generator.Generator
+	byTarget bool
 )
 
 var inspectCmd = &cobra.Command{
@@ -20,46 +21,44 @@ var inspectCmd = &cobra.Command{
 	Short: "Inspect generator plugin information",
 	Long:  "The 'inspect' sub-command takes a list of directories and prints all found plugin information.",
 	Run: func(cmd *cobra.Command, args []string) {
+		// set up table formatter
+		table.DefaultHeaderFormatter = func(format string, vals ...interface{}) string {
+			return strings.ToUpper(fmt.Sprintf(format, vals...))
+		}
+
+		// TODO: remove duplicate args from CLI
+
 		// load specific plugins from positional args
-		generators = make(map[string]generator.Generator)
+		var generators = make(map[string]generator.Generator)
 		for _, path := range args {
-			gen, err := generator.LoadPlugin(path)
-			if err != nil {
-				fmt.Printf("failed to load plugin at path '%s': %v\n", path, err)
-				continue
-			}
-			// path is directory, so no plugin is loaded, but no error was returned
-			if gen == nil {
-				continue
-			}
-			generators[path] = gen
-		}
-
-		// load plugins and print all plugin details
-		if len(pluginDirs) > 0 {
-
-		} else {
-			for _, pluginDir := range config.PluginDirs {
-				gens, err := generator.LoadPlugins(pluginDir)
+			err := filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
 				if err != nil {
-					fmt.Printf("failed to load plugin: %v\n", err)
-					continue
+					return err
 				}
-				maps.Copy(generators, gens)
+				if info.IsDir() {
+					return nil
+				}
+				gen, err := generator.LoadPlugin(path)
+				if err != nil {
+					return err
+				}
+				generators[gen.GetName()] = gen
+				return nil
+			})
+
+			if err != nil {
+				log.Error().Err(err).Msg("failed to walk directory")
+				continue
 			}
 		}
 
-		// print all generator information
+		// print all generator plugin information found
+		tbl := table.New("Name", "Version", "Description")
+		for _, g := range generators {
+			tbl.AddRow(g.GetName(), g.GetVersion(), g.GetDescription())
+		}
 		if len(generators) > 0 {
-			o := ""
-			for _, g := range generators {
-				o += fmt.Sprintf("- Name:         %s\n", g.GetName())
-				o += fmt.Sprintf("  Version:      %s\n", g.GetVersion())
-				o += fmt.Sprintf("  Description:  %s\n", g.GetDescription())
-				o += "\n"
-			}
-			o = strings.TrimRight(o, "\n")
-			fmt.Printf("%s", o)
+			tbl.Print()
 		}
 	},
 }

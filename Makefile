@@ -40,6 +40,10 @@ lib/%.so: pkg/generator/plugins/%/*.go
 	mkdir -p lib
 	go build -buildmode=plugin -o $@ $<
 
+docs:
+	go doc github.com/OpenCHAMI/cmd
+	go doc github.com/OpenCHAMI/pkg/configurator
+
 # remove executable and all built plugins
 .PHONY: clean
 clean:

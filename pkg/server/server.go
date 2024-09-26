@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
@@ -14,7 +15,12 @@ import (
 	"github.com/OpenCHAMI/jwtauth/v5"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rs/zerolog"
 	"github.com/sirupsen/logrus"
+
+	openchami_authenticator "github.com/openchami/chi-middleware/auth"
+	openchami_logger "github.com/openchami/chi-middleware/log"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -77,6 +83,10 @@ func (s *Server) Serve() error {
 		}
 	}
 
+	// Setup logger
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	logger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	// create new go-chi router with its routes
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
@@ -85,11 +95,12 @@ func (s *Server) Serve() error {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.StripSlashes)
 	router.Use(middleware.Timeout(60 * time.Second))
+	router.Use(openchami_logger.OpenCHAMILogger(logger))
 	if s.Config.Server.Jwks.Uri != "" {
 		router.Group(func(r chi.Router) {
 			r.Use(
 				jwtauth.Verifier(tokenAuth),
-				jwtauth.Authenticator(tokenAuth),
+				openchami_authenticator.AuthenticatorWithRequiredClaims(tokenAuth, []string{"sub", "iss", "aud"}),
 			)
 
 			// protected routes if using auth
@@ -108,6 +119,7 @@ func (s *Server) Serve() error {
 	return s.ListenAndServe()
 }
 
+// TODO: implement a way to shut the server down
 func (s *Server) Close() {
 
 }
@@ -119,14 +131,14 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 	// get all of the expect query URL params and validate
 	s.GeneratorParams.Target = r.URL.Query().Get("target")
 	if s.GeneratorParams.Target == "" {
-		writeErrorResponse(w, "no targets supplied")
+		writeErrorResponse(w, "must specify a target")
 		return
 	}
 
 	// generate a new config file from supplied params
 	outputs, err := generator.GenerateWithTarget(s.Config, s.GeneratorParams)
 	if err != nil {
-		writeErrorResponse(w, "failed to generate config: %v", err)
+		writeErrorResponse(w, "failed to generate file: %w", err)
 		return
 	}
 
@@ -134,12 +146,12 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 	tmp := generator.ConvertContentsToString(outputs)
 	b, err := json.Marshal(tmp)
 	if err != nil {
-		writeErrorResponse(w, "failed to marshal output: %v", err)
+		writeErrorResponse(w, "failed to marshal output: %w", err)
 		return
 	}
 	_, err = w.Write(b)
 	if err != nil {
-		writeErrorResponse(w, "failed to write response: %v", err)
+		writeErrorResponse(w, "failed to write response: %w", err)
 		return
 	}
 }
@@ -151,7 +163,7 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) ManageTemplates(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte("this is not implemented yet"))
 	if err != nil {
-		writeErrorResponse(w, "failed to write response: %v", err)
+		writeErrorResponse(w, "failed to write response: %w", err)
 		return
 	}
 }
