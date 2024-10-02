@@ -26,7 +26,7 @@ func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (gen
 	var (
 		params                                   = generator.GetParams(opts...)
 		client                                   = generator.GetClient(params)
-		targetKey                                = params["targets"].(string) // required param
+		targetKey                                = params["target"].(string) // required param
 		target                                   = config.Targets[targetKey]
 		eps       []configurator.RedfishEndpoint = nil
 		err       error                          = nil
