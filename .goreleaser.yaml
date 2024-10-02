@@ -3,6 +3,7 @@ version: 2
 before:
   hooks:
     - go mod download
+    - make plugins
 builds:
   - env:
       - CGO_ENABLED=1
