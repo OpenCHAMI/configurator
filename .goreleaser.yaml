@@ -24,6 +24,7 @@ archives:
       - LICENSE
       - CHANGELOG.md
       - README.md
+      - lib/
 dockers:
   - 
     image_templates:
@@ -41,6 +42,7 @@ dockers:
       - LICENSE
       - CHANGELOG.md
       - README.md
+      - lib/
 checksum:
   name_template: 'checksums.txt'
 snapshot:
