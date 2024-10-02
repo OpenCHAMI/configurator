@@ -62,6 +62,7 @@ func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (gen
 		"plugin_description": g.GetDescription(),
 		"server_opts":        "",
 		"global_opts":        "",
+		"consoles":           consoles,
 	}, target.TemplatePaths...)
 }
 
