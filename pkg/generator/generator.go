@@ -3,7 +3,7 @@ package generator
 import (
 	"bytes"
 	"fmt"
-	"maps"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"plugin"
@@ -17,6 +17,7 @@ import (
 type Mappings map[string]any
 type FileMap map[string][]byte
 type FileList [][]byte
+type Template []byte
 
 // Generator interface used to define how files are created. Plugins can
 // be created entirely independent of the main driver program.
@@ -29,11 +30,12 @@ type Generator interface {
 
 // Params defined and used by the "generate" subcommand.
 type Params struct {
-	Args        []string
-	PluginPaths []string
-	Generators  map[string]Generator
-	Target      string
-	Verbose     bool
+	Args          []string
+	Generators    map[string]Generator
+	TemplatePaths []string
+	PluginPath    string
+	Target        string
+	Verbose       bool
 }
 
 // Converts the file outputs from map[string][]byte to map[string]string.
@@ -51,13 +53,13 @@ func LoadFiles(paths ...string) (FileMap, error) {
 	for _, path := range paths {
 		expandedPaths, err := filepath.Glob(path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to glob path: %v", err)
+			return nil, fmt.Errorf("failed to glob path: %w", err)
 		}
 		for _, expandedPath := range expandedPaths {
 			info, err := os.Stat(expandedPath)
 			if err != nil {
 				fmt.Println(err)
-				return nil, fmt.Errorf("failed to stat file or directory: %v", err)
+				return nil, fmt.Errorf("failed to stat file or directory: %w", err)
 			}
 			// skip any directories found
 			if info.IsDir() {
@@ -65,7 +67,7 @@ func LoadFiles(paths ...string) (FileMap, error) {
 			}
 			b, err := os.ReadFile(expandedPath)
 			if err != nil {
-				return nil, fmt.Errorf("failed to read file: %v", err)
+				return nil, fmt.Errorf("failed to read file: %w", err)
 			}
 
 			outputs[expandedPath] = b
@@ -81,19 +83,19 @@ func LoadPlugin(path string) (Generator, error) {
 	if isDir, err := util.IsDirectory(path); err == nil && isDir {
 		return nil, nil
 	} else if err != nil {
-		return nil, fmt.Errorf("failed to test if path is directory: %v", err)
+		return nil, fmt.Errorf("failed to test if plugin path is directory: %w", err)
 	}
 
 	// try and open the plugin
 	p, err := plugin.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open plugin: %v", err)
+		return nil, fmt.Errorf("failed to open plugin: %w", err)
 	}
 
 	// load the "Generator" symbol from plugin
 	symbol, err := p.Lookup("Generator")
 	if err != nil {
-		return nil, fmt.Errorf("failed to look up symbol at path '%s': %v", path, err)
+		return nil, fmt.Errorf("failed to look up symbol at path '%s': %w", path, err)
 	}
 
 	// assert that the plugin loaded has a valid generator
@@ -111,45 +113,123 @@ func LoadPlugin(path string) (Generator, error) {
 func LoadPlugins(dirpath string, opts ...util.Option) (map[string]Generator, error) {
 	// check if verbose option is supplied
 	var (
-		gens   = make(map[string]Generator)
-		params = util.GetParams(opts...)
+		generators = make(map[string]Generator)
+		params     = util.ToDict(opts...)
 	)
 
-	items, _ := os.ReadDir(dirpath)
-	for _, item := range items {
-		if item.IsDir() {
-			subitems, _ := os.ReadDir(item.Name())
-			for _, subitem := range subitems {
-				if !subitem.IsDir() {
-					gen, err := LoadPlugin(subitem.Name())
-					if err != nil {
-						fmt.Printf("failed to load generator in directory '%s': %v\n", item.Name(), err)
-						continue
-					}
-					if verbose, ok := params["verbose"].(bool); ok {
-						if verbose {
-							fmt.Printf("-- found plugin '%s'\n", item.Name())
-						}
-					}
-					gens[gen.GetName()] = gen
-				}
+	//
+	err := filepath.Walk(dirpath, func(path string, info fs.FileInfo, err error) error {
+		// skip trying to load generator plugin if directory or error
+		if info.IsDir() || err != nil {
+			return nil
+		}
+
+		// load the generator plugin from current path
+		gen, err := LoadPlugin(path)
+		if err != nil {
+			return fmt.Errorf("failed to load generator in directory '%s': %w", path, err)
+		}
+
+		// show the plugins found if verbose flag is set
+		if params.GetVerbose() {
+			fmt.Printf("-- found plugin '%s'\n", gen.GetName())
+		}
+
+		// map each generator plugin by name for lookup
+		generators[gen.GetName()] = gen
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk directory: %w", err)
+	}
+
+	// items, _ := os.ReadDir(dirpath)
+	// for _, item := range items {
+	// 	if item.IsDir() {
+	// 		subitems, _ := os.ReadDir(item.Name())
+	// 		for _, subitem := range subitems {
+	// 			if !subitem.IsDir() {
+	// 				gen, err := LoadPlugin(subitem.Name())
+	// 				if err != nil {
+	// 					fmt.Printf("failed to load generator in directory '%s': %v\n", item.Name(), err)
+	// 					continue
+	// 				}
+	// 				if verbose, ok := params["verbose"].(bool); ok {
+	// 					if verbose {
+	// 						fmt.Printf("-- found plugin '%s'\n", item.Name())
+	// 					}
+	// 				}
+	// 				gens[gen.GetName()] = gen
+	// 			}
+	// 		}
+	// 	} else {
+	// 		gen, err := LoadPlugin(dirpath + item.Name())
+	// 		if err != nil {
+	// 			fmt.Printf("failed to load plugin: %v\n", err)
+	// 			continue
+	// 		}
+	// 		if verbose, ok := params["verbose"].(bool); ok {
+	// 			if verbose {
+	// 				fmt.Printf("-- found plugin '%s'\n", dirpath+item.Name())
+	// 			}
+	// 		}
+	// 		gens[gen.GetName()] = gen
+	// 	}
+	// }
+
+	return generators, nil
+}
+
+func LoadTemplate(path string) (Template, error) {
+	// skip loading template if path is a directory with no error
+	if isDir, err := util.IsDirectory(path); err == nil && isDir {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to test if template path is directory: %w", err)
+	}
+
+	// try and read the contents of the file
+	// NOTE: we don't care if this is actually a Jinja template
+	// or not...at least for now.
+	return os.ReadFile(path)
+}
+
+func LoadTemplates(paths []string, opts ...util.Option) (map[string]Template, error) {
+	var (
+		templates = make(map[string]Template)
+		params    = util.ToDict(opts...)
+	)
+
+	for _, path := range paths {
+		err := filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
+			// skip trying to load generator plugin if directory or error
+			if info.IsDir() || err != nil {
+				return nil
 			}
-		} else {
-			gen, err := LoadPlugin(dirpath + item.Name())
+
+			// load the contents of the template
+			template, err := LoadTemplate(path)
 			if err != nil {
-				fmt.Printf("failed to load plugin: %v\n", err)
-				continue
+				return fmt.Errorf("failed to load generator in directory '%s': %w", path, err)
 			}
-			if verbose, ok := params["verbose"].(bool); ok {
-				if verbose {
-					fmt.Printf("-- found plugin '%s'\n", dirpath+item.Name())
-				}
+
+			// show the templates loaded if verbose flag is set
+			if params.GetVerbose() {
+				fmt.Printf("-- loaded tempalte '%s'\n", path)
 			}
-			gens[gen.GetName()] = gen
+
+			// map each template by the path it was loaded from
+			templates[path] = template
+			return nil
+		})
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to walk directory: %w", err)
 		}
 	}
 
-	return gens, nil
+	return templates, nil
 }
 
 // Option to specify "target" in parameter map. This is used to set which generator
@@ -167,6 +247,31 @@ func WithType(_type string) util.Option {
 	return func(p util.Params) {
 		if p != nil {
 			p["type"] = _type
+		}
+	}
+}
+
+// Option to the plugin to load
+func WithPlugin(path string) util.Option {
+	return func(p util.Params) {
+		if p != nil {
+			plugin, err := LoadPlugin(path)
+			if err != nil {
+				return
+			}
+			p["plugin"] = plugin
+		}
+	}
+}
+
+func WithTemplates(paths []string) util.Option {
+	return func(p util.Params) {
+		if p != nil {
+			templates, err := LoadTemplates(paths)
+			if err != nil {
+
+			}
+			p["templates"] = templates
 		}
 	}
 }
@@ -217,13 +322,13 @@ func ApplyTemplates(mappings Mappings, contents ...[]byte) (FileList, error) {
 		// load jinja template from file
 		t, err := gonja.FromBytes(b)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read template from file: %v", err)
+			return nil, fmt.Errorf("failed to read template from file: %w", err)
 		}
 
 		// execute/render jinja template
 		b := bytes.Buffer{}
 		if err = t.Execute(&b, data); err != nil {
-			return nil, fmt.Errorf("failed to execute: %v", err)
+			return nil, fmt.Errorf("failed to execute: %w", err)
 		}
 		outputs = append(outputs, b.Bytes())
 	}
@@ -243,18 +348,35 @@ func ApplyTemplateFromFiles(mappings Mappings, paths ...string) (FileMap, error)
 		// load jinja template from file
 		t, err := gonja.FromFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read template from file: %v", err)
+			return nil, fmt.Errorf("failed to read template from file: %w", err)
 		}
 
 		// execute/render jinja template
 		b := bytes.Buffer{}
 		if err = t.Execute(&b, data); err != nil {
-			return nil, fmt.Errorf("failed to execute: %v", err)
+			return nil, fmt.Errorf("failed to execute: %w", err)
 		}
 		outputs[path] = b.Bytes()
 	}
 
 	return outputs, nil
+}
+
+// Generate() is the main function to generate a collection of files and returns them as a map.
+// This function only expects a path to a plugin and paths to a collection of templates to
+// be used. This function will only load the plugin on-demand and fetch resources as needed.
+func Generate(config *configurator.Config, params Params) (FileMap, error) {
+	var (
+		gen    Generator
+		client = configurator.NewSmdClient()
+	)
+
+	return gen.Generate(
+		config,
+		WithPlugin(params.PluginPath),
+		WithTemplates(params.TemplatePaths),
+		WithClient(client),
+	)
 }
 
 // Main function to generate a collection of files as a map with the path as the key and
@@ -269,8 +391,7 @@ func ApplyTemplateFromFiles(mappings Mappings, paths ...string) (FileMap, error)
 func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, error) {
 	// load generator plugins to generate configs or to print
 	var (
-		generators = make(map[string]Generator)
-		client     = configurator.NewSmdClient(
+		client = configurator.NewSmdClient(
 			configurator.WithHost(config.SmdClient.Host),
 			configurator.WithPort(config.SmdClient.Port),
 			configurator.WithAccessToken(config.AccessToken),
@@ -278,41 +399,32 @@ func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, er
 		)
 	)
 
-	// load all plugins from supplied arguments
-	for _, path := range params.PluginPaths {
-		if params.Verbose {
-			fmt.Printf("loading plugins from '%s'\n", path)
-		}
-		plugins, err := LoadPlugins(path)
-		if err != nil {
-			fmt.Printf("failed to load plugins: %v\n", err)
-			err = nil
-			continue
-		}
-
-		// add loaded generator plugins to set
-		maps.Copy(generators, plugins)
+	// check if a target is supplied
+	if len(params.Args) == 0 && params.Target == "" {
+		return nil, fmt.Errorf("must specify a target")
 	}
 
-	// copy all generators supplied from arguments
-	maps.Copy(generators, params.Generators)
+	// load target information from config
+	target, ok := config.Targets[params.Target]
+	if !ok {
+		return nil, fmt.Errorf("target not found in config")
+	}
 
-	// show available targets then exit
-	if len(params.Args) == 0 && params.Target == "" {
-		for g := range generators {
-			fmt.Printf("-- found generator plugin \"%s\"\n", g)
-		}
-		return nil, nil
+	// if plugin path specified from CLI, use that instead
+	if params.PluginPath != "" {
+		target.PluginPath = params.PluginPath
+	}
+
+	// only load the plugin needed for this target
+	generator, err := LoadPlugin(target.PluginPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load plugin: %w", err)
 	}
 
 	// run the generator plugin from target passed
-	gen := generators[params.Target]
-	if gen == nil {
-		return nil, fmt.Errorf("invalid generator target (%s)", params.Target)
-	}
-	return gen.Generate(
+	return generator.Generate(
 		config,
-		WithTarget(gen.GetName()),
+		WithTarget(generator.GetName()),
 		WithClient(client),
 	)
 }

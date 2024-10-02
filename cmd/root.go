@@ -10,11 +10,14 @@ import (
 )
 
 var (
-	configPath string
-	config     configurator.Config
-	verbose    bool
-	targets    []string
-	outputPath string
+	configPath  string
+	config      configurator.Config
+	verbose     bool
+	targets     []string
+	outputPath  string
+	accessToken string
+	remoteHost  string
+	remotePort  int
 )
 
 var rootCmd = &cobra.Command{

@@ -35,11 +35,6 @@ var serveCmd = &cobra.Command{
 			}
 		}
 
-		// use config plugins if none supplied via CLI
-		if len(pluginPaths) <= 0 {
-			pluginPaths = append(pluginPaths, config.PluginDirs...)
-		}
-
 		// show config as JSON and generators if verbose
 		if verbose {
 			b, err := json.MarshalIndent(config, "", "  ")
@@ -60,15 +55,19 @@ var serveCmd = &cobra.Command{
 				Retries: config.Server.Jwks.Retries,
 			},
 			GeneratorParams: generator.Params{
-				Args:        args,
-				PluginPaths: pluginPaths,
+				Args:       args,
+				PluginPath: pluginPath,
 				// Target: target,  // NOTE: targets are set via HTTP requests (ex: curl http://configurator:3334/generate?target=dnsmasq)
 				Verbose: verbose,
 			},
 		}
+
+		// start listening with the server
 		err := server.Serve()
 		if errors.Is(err, http.ErrServerClosed) {
-			fmt.Printf("Server closed.")
+			if verbose {
+				fmt.Printf("Server closed.")
+			}
 		} else if err != nil {
 			fmt.Errorf("failed to start server: %v", err)
 			os.Exit(1)
@@ -79,7 +78,7 @@ var serveCmd = &cobra.Command{
 func init() {
 	serveCmd.Flags().StringVar(&config.Server.Host, "host", config.Server.Host, "set the server host")
 	serveCmd.Flags().IntVar(&config.Server.Port, "port", config.Server.Port, "set the server port")
-	serveCmd.Flags().StringSliceVar(&pluginPaths, "plugins", nil, "set the generator plugins directory path")
+	serveCmd.Flags().StringVar(&pluginPath, "plugin", "", "set the generator plugins directory path")
 	serveCmd.Flags().StringVar(&config.Server.Jwks.Uri, "jwks-uri", config.Server.Jwks.Uri, "set the JWKS url to fetch public key")
 	serveCmd.Flags().IntVar(&config.Server.Jwks.Retries, "jwks-fetch-retries", config.Server.Jwks.Retries, "set the JWKS fetch retry count")
 	rootCmd.AddCommand(serveCmd)

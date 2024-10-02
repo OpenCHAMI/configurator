@@ -8,25 +8,8 @@ import (
 	"slices"
 
 	"github.com/OpenCHAMI/jwtauth/v5"
-	"github.com/lestrrat-go/jwx/jwk"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 )
-
-func VerifyClaims(testClaims []string, r *http.Request) (bool, error) {
-	// extract claims from JWT
-	_, claims, err := jwtauth.FromContext(r.Context())
-	if err != nil {
-		return false, fmt.Errorf("failed to get claims(s) from token: %v", err)
-	}
-
-	// verify that each one of the test claims are included
-	for _, testClaim := range testClaims {
-		_, ok := claims[testClaim]
-		if !ok {
-			return false, fmt.Errorf("failed to verify claim(s) from token: %s", testClaim)
-		}
-	}
-	return true, nil
-}
 
 func VerifyScope(testScopes []string, r *http.Request) (bool, error) {
 	// extract the scopes from JWT
@@ -111,4 +94,8 @@ func FetchPublicKeyFromURL(url string) (*jwtauth.JWTAuth, error) {
 	}
 
 	return tokenAuth, nil
+}
+
+func LoadAccessToken() {
+
 }
