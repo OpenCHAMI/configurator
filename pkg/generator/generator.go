@@ -31,6 +31,8 @@ type Generator interface {
 // Params defined and used by the "generate" subcommand.
 type Params struct {
 	Args          []string
+	Host          string
+	Port          int
 	Generators    map[string]Generator
 	TemplatePaths []string
 	PluginPath    string
@@ -131,7 +133,7 @@ func LoadPlugins(dirpath string, opts ...util.Option) (map[string]Generator, err
 		}
 
 		// show the plugins found if verbose flag is set
-		if params.GetVerbose() {
+		if util.GetVerbose(params) {
 			fmt.Printf("-- found plugin '%s'\n", gen.GetName())
 		}
 
@@ -215,7 +217,7 @@ func LoadTemplates(paths []string, opts ...util.Option) (map[string]Template, er
 			}
 
 			// show the templates loaded if verbose flag is set
-			if params.GetVerbose() {
+			if util.GetVerbose(params) {
 				fmt.Printf("-- loaded tempalte '%s'\n", path)
 			}
 
@@ -238,6 +240,14 @@ func WithTarget(target string) util.Option {
 	return func(p util.Params) {
 		if p != nil {
 			p["target"] = target
+		}
+	}
+}
+
+func WithArgs(args []string) util.Option {
+	return func(p util.Params) {
+		if p != nil {
+			p["args"] = args
 		}
 	}
 }
@@ -303,6 +313,14 @@ func GetParams(opts ...util.Option) util.Params {
 		opt(params)
 	}
 	return params
+}
+
+func GetArgs(params util.Params) []string {
+	args := util.Get[[]string](params, "args")
+	if args != nil {
+		return *args
+	}
+	return nil
 }
 
 // Wrapper function to slightly abstract away some of the nuances with using gonja
@@ -388,13 +406,14 @@ func Generate(config *configurator.Config, params Params) (FileMap, error) {
 // It is also call when running the configurator as a service with the "/generate" route.
 //
 // TODO: Separate loading plugins so we can load them once when running as a service.
+// TODO: Handle host/port arguments from CLI flags correctly
 func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, error) {
 	// load generator plugins to generate configs or to print
 	var (
 		client = configurator.NewSmdClient(
-			configurator.WithHost(config.SmdClient.Host),
-			configurator.WithPort(config.SmdClient.Port),
-			configurator.WithAccessToken(config.AccessToken),
+			configurator.WithClientHost(config.SmdClient.Host),
+			configurator.WithClientPort(config.SmdClient.Port),
+			configurator.WithClientAccessToken(config.AccessToken),
 			configurator.WithCertPoolFile(config.CertPath),
 		)
 	)
@@ -426,5 +445,6 @@ func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, er
 		config,
 		WithTarget(generator.GetName()),
 		WithClient(client),
+		WithArgs(params.Args),
 	)
 }

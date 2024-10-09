@@ -65,6 +65,7 @@ func MakeRequest(url string, httpMethod string, body []byte, headers map[string]
 
 // Returns the git commit string by executing command.
 // NOTE: This currently requires git to be installed.
+// NOTE: This also requires running within the repository.
 // TODO: Change how this is done to not require executing a command.
 func GitCommit() string {
 	c := exec.Command("git", "rev-parse", "--short=8", "HEAD")
