@@ -86,6 +86,8 @@ func RunTargets(config *configurator.Config, args []string, targets ...string) {
 	for _, target := range targets {
 		outputBytes, err := generator.GenerateWithTarget(config, generator.Params{
 			Args:       args,
+			Host:       remoteHost,
+			Port:       remotePort,
 			PluginPath: pluginPath,
 			Target:     target,
 			Verbose:    verbose,
@@ -122,9 +124,10 @@ func RunTargets(config *configurator.Config, args []string, targets ...string) {
 				}
 				log.Info().Msgf("wrote file to '%s'\n", outputPath)
 			}
-		} else if outputPath != "" && targetCount > 1 && useCompression {
+		} else if outputPath != "" && len(outputBytes) > 1 && useCompression {
 			// write multiple files to archive, compress, then save to output path
-			out, err := os.Create(fmt.Sprintf("%s.tar.gz", outputPath))
+			outputPath = fmt.Sprintf("%s.tar.gz", outputPath)
+			out, err := os.Create(outputPath)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to write archive")
 				os.Exit(1)
@@ -140,7 +143,7 @@ func RunTargets(config *configurator.Config, args []string, targets ...string) {
 				log.Error().Err(err).Msg("failed to create archive")
 				os.Exit(1)
 			}
-
+			log.Info().Msgf("wrote file to '%s'\n", outputPath)
 		} else if outputPath != "" && targetCount > 1 || templateCount > 1 {
 			// write multiple files in directory using template name
 			err := os.MkdirAll(filepath.Clean(outputPath), 0o755)
