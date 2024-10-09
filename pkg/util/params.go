@@ -60,11 +60,17 @@ func GetOpt[T any](opts []Option, key string) *T {
 	return Get[T](ToDict(opts...), "required_claims")
 }
 
-func (p Params) GetVerbose() bool {
+func WithVerbosity() Option {
+	return func(p Params) {
+		p["verbose"] = true
+	}
+}
+
+func GetVerbose(p Params) bool {
 	if verbose, ok := p["verbose"].(bool); ok {
 		return verbose
 	}
 
-	// default setting
+	// default value
 	return false
 }
