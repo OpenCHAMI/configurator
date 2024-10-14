@@ -98,15 +98,9 @@ func WithNetwork(network string) util.Option {
 	}
 }
 
-func WithHost(host string) util.Option {
+func WithIPAddress(ipAddr string) util.Option {
 	return func(p util.Params) {
-		p["host"] = host
-	}
-}
-
-func WithPort(port int) util.Option {
-	return func(p util.Params) {
-		p["port"] = port
+		p["ip"] = ipAddr
 	}
 }
 
@@ -119,18 +113,13 @@ func GetNetwork(p util.Params) string {
 	return ""
 }
 
-func GetHost(p util.Params) string {
-	if host, ok := p["host"].(string); ok {
-		return host
+func GetIPAddress(p util.Params) string {
+	if ip, ok := p["ip"].(string); ok {
+		return ip
 	}
-	return ""
-}
 
-func GetPort(p util.Params) int {
-	if port, ok := p["port"].(int); ok {
-		return port
-	}
-	return -1
+	// default value
+	return ""
 }
 
 // Fetch the ethernet interfaces from SMD service using its API. An access token
@@ -141,20 +130,10 @@ func (client *SmdClient) FetchEthernetInterfaces(opts ...util.Option) ([]Etherne
 	var (
 		params   = util.ToDict(opts...)
 		verbose  = util.GetVerbose(params)
-		host     = GetHost(params)
-		port     = GetPort(params)
 		network  = GetNetwork(params)
 		eths     = []EthernetInterface{}
 		endpoint = "/Inventory/EthernetInterfaces"
 	)
-
-	// set the client's host if option is passed
-	if host != "" {
-		client.Host = host
-	}
-	if port > 0 {
-		client.Port = port
-	}
 
 	// add network to endpoint fetch filter by network type
 	if network != "" {
