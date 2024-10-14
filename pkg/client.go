@@ -38,25 +38,25 @@ func NewSmdClient(opts ...ClientOption) SmdClient {
 	return client
 }
 
-func WithHost(host string) ClientOption {
+func WithClientHost(host string) ClientOption {
 	return func(c *SmdClient) {
 		c.Host = host
 	}
 }
 
-func WithPort(port int) ClientOption {
+func WithClientPort(port int) ClientOption {
 	return func(c *SmdClient) {
 		c.Port = port
 	}
 }
 
-func WithAccessToken(token string) ClientOption {
+func WithClientAccessToken(token string) ClientOption {
 	return func(c *SmdClient) {
 		c.AccessToken = token
 	}
 }
 
-func WithCertPool(certPool *x509.CertPool) ClientOption {
+func WithClientCertPool(certPool *x509.CertPool) ClientOption {
 	return func(c *SmdClient) {
 		c.Client.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{
@@ -82,13 +82,7 @@ func WithCertPoolFile(certPath string) ClientOption {
 	cacert, _ := os.ReadFile(certPath)
 	certPool := x509.NewCertPool()
 	certPool.AppendCertsFromPEM(cacert)
-	return WithCertPool(certPool)
-}
-
-func WithVerbosity() util.Option {
-	return func(p util.Params) {
-		p["verbose"] = true
-	}
+	return WithClientCertPool(certPool)
 }
 
 // Create a set of params with all default values.
@@ -98,16 +92,56 @@ func NewParams() util.Params {
 	}
 }
 
-// Fetch the ethernet interfaces from SMD service using its API. An access token may be required if the SMD
-// service SMD_JWKS_URL envirnoment variable is set.
+func WithNetwork(network string) util.Option {
+	return func(p util.Params) {
+		p["network"] = network
+	}
+}
+
+func WithIPAddress(ipAddr string) util.Option {
+	return func(p util.Params) {
+		p["ip"] = ipAddr
+	}
+}
+
+func GetNetwork(p util.Params) string {
+	if network, ok := p["network"].(string); ok {
+		return network
+	}
+
+	// default value
+	return ""
+}
+
+func GetIPAddress(p util.Params) string {
+	if ip, ok := p["ip"].(string); ok {
+		return ip
+	}
+
+	// default value
+	return ""
+}
+
+// Fetch the ethernet interfaces from SMD service using its API. An access token
+// may be required if the SMD service SMD_JWKS_URL envirnoment variable is set.
+//
+// TODO: Change the `Option` type being used here to reduce it's scope.
 func (client *SmdClient) FetchEthernetInterfaces(opts ...util.Option) ([]EthernetInterface, error) {
 	var (
-		params  = util.ToDict(opts...)
-		verbose = util.Get[bool](params, "verbose")
-		eths    = []EthernetInterface{}
+		params   = util.ToDict(opts...)
+		verbose  = util.GetVerbose(params)
+		network  = GetNetwork(params)
+		eths     = []EthernetInterface{}
+		endpoint = "/Inventory/EthernetInterfaces"
 	)
+
+	// add network to endpoint fetch filter by network type
+	if network != "" {
+		endpoint = fmt.Sprintf("%s?Network=%s", endpoint, network)
+	}
+
 	// make request to SMD endpoint
-	b, err := client.makeRequest("/Inventory/EthernetInterfaces")
+	b, err := client.makeRequest(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read HTTP response: %v", err)
 	}
@@ -119,10 +153,8 @@ func (client *SmdClient) FetchEthernetInterfaces(opts ...util.Option) ([]Etherne
 	}
 
 	// print what we got if verbose is set
-	if verbose != nil {
-		if *verbose {
-			fmt.Printf("Ethernet Interfaces: %v\n", string(b))
-		}
+	if verbose {
+		fmt.Printf("Ethernet Interfaces: %v\n", string(b))
 	}
 
 	return eths, nil

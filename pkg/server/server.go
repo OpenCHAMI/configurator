@@ -16,7 +16,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
-	"github.com/sirupsen/logrus"
 
 	openchami_authenticator "github.com/openchami/chi-middleware/auth"
 	openchami_logger "github.com/openchami/chi-middleware/log"
@@ -76,7 +75,7 @@ func (s *Server) Serve() error {
 			var err error
 			tokenAuth, err = configurator.FetchPublicKeyFromURL(s.Config.Server.Jwks.Uri)
 			if err != nil {
-				logrus.Errorf("failed to fetch JWKS: %w", err)
+				log.Error().Err(err).Msgf("failed to fetch JWKS from URL '%s'", s.Config.Server.Jwks.Uri)
 				continue
 			}
 			break
@@ -132,13 +131,18 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 	s.GeneratorParams.Target = r.URL.Query().Get("target")
 	if s.GeneratorParams.Target == "" {
 		writeErrorResponse(w, "must specify a target")
+		log.Error().Msg("must specify a target")
 		return
 	}
+
+	// get the IP address from the request
+	s.GeneratorParams.PluginArgs["host"] = r.Host
 
 	// generate a new config file from supplied params
 	outputs, err := generator.GenerateWithTarget(s.Config, s.GeneratorParams)
 	if err != nil {
-		writeErrorResponse(w, "failed to generate file: %w", err)
+		writeErrorResponse(w, "failed to generate file with target '%s': %w", s.GeneratorParams.Target, err)
+		log.Error().Err(err).Msgf("failed to generate file with target '%s'", s.GeneratorParams.Target)
 		return
 	}
 
@@ -147,11 +151,13 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 	b, err := json.Marshal(tmp)
 	if err != nil {
 		writeErrorResponse(w, "failed to marshal output: %w", err)
+		log.Error().Err(err).Msg("failed to marshal output after converting contents to string")
 		return
 	}
 	_, err = w.Write(b)
 	if err != nil {
 		writeErrorResponse(w, "failed to write response: %w", err)
+		log.Error().Err(err).Msg("failed to write response")
 		return
 	}
 }
