@@ -1,7 +1,6 @@
 package generator
 
 import (
-	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -10,8 +9,6 @@ import (
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
 	"github.com/OpenCHAMI/configurator/pkg/util"
-	"github.com/nikolalohinski/gonja/v2"
-	"github.com/nikolalohinski/gonja/v2/exec"
 )
 
 type Mappings map[string]any
@@ -29,11 +26,16 @@ type Generator interface {
 }
 
 // Params defined and used by the "generate" subcommand.
+// TODO: It may make more sense to just pass this to 'Generate()' instead of using
+// the functional options pattern.
 type Params struct {
 	Args          []string
+	Host          string
+	Port          int
 	Generators    map[string]Generator
 	TemplatePaths []string
 	PluginPath    string
+	PluginArgs    map[string]string
 	Target        string
 	Verbose       bool
 }
@@ -131,7 +133,7 @@ func LoadPlugins(dirpath string, opts ...util.Option) (map[string]Generator, err
 		}
 
 		// show the plugins found if verbose flag is set
-		if params.GetVerbose() {
+		if util.GetVerbose(params) {
 			fmt.Printf("-- found plugin '%s'\n", gen.GetName())
 		}
 
@@ -144,111 +146,34 @@ func LoadPlugins(dirpath string, opts ...util.Option) (map[string]Generator, err
 		return nil, fmt.Errorf("failed to walk directory: %w", err)
 	}
 
-	// items, _ := os.ReadDir(dirpath)
-	// for _, item := range items {
-	// 	if item.IsDir() {
-	// 		subitems, _ := os.ReadDir(item.Name())
-	// 		for _, subitem := range subitems {
-	// 			if !subitem.IsDir() {
-	// 				gen, err := LoadPlugin(subitem.Name())
-	// 				if err != nil {
-	// 					fmt.Printf("failed to load generator in directory '%s': %v\n", item.Name(), err)
-	// 					continue
-	// 				}
-	// 				if verbose, ok := params["verbose"].(bool); ok {
-	// 					if verbose {
-	// 						fmt.Printf("-- found plugin '%s'\n", item.Name())
-	// 					}
-	// 				}
-	// 				gens[gen.GetName()] = gen
-	// 			}
-	// 		}
-	// 	} else {
-	// 		gen, err := LoadPlugin(dirpath + item.Name())
-	// 		if err != nil {
-	// 			fmt.Printf("failed to load plugin: %v\n", err)
-	// 			continue
-	// 		}
-	// 		if verbose, ok := params["verbose"].(bool); ok {
-	// 			if verbose {
-	// 				fmt.Printf("-- found plugin '%s'\n", dirpath+item.Name())
-	// 			}
-	// 		}
-	// 		gens[gen.GetName()] = gen
-	// 	}
-	// }
-
 	return generators, nil
 }
 
-func LoadTemplate(path string) (Template, error) {
-	// skip loading template if path is a directory with no error
-	if isDir, err := util.IsDirectory(path); err == nil && isDir {
-		return nil, nil
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to test if template path is directory: %w", err)
-	}
-
-	// try and read the contents of the file
-	// NOTE: we don't care if this is actually a Jinja template
-	// or not...at least for now.
-	return os.ReadFile(path)
-}
-
-func LoadTemplates(paths []string, opts ...util.Option) (map[string]Template, error) {
-	var (
-		templates = make(map[string]Template)
-		params    = util.ToDict(opts...)
-	)
-
-	for _, path := range paths {
-		err := filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
-			// skip trying to load generator plugin if directory or error
-			if info.IsDir() || err != nil {
-				return nil
-			}
-
-			// load the contents of the template
-			template, err := LoadTemplate(path)
-			if err != nil {
-				return fmt.Errorf("failed to load generator in directory '%s': %w", path, err)
-			}
-
-			// show the templates loaded if verbose flag is set
-			if params.GetVerbose() {
-				fmt.Printf("-- loaded tempalte '%s'\n", path)
-			}
-
-			// map each template by the path it was loaded from
-			templates[path] = template
-			return nil
-		})
-
-		if err != nil {
-			return nil, fmt.Errorf("failed to walk directory: %w", err)
+func With(key string, value any) util.Option {
+	return func(p util.Params) {
+		if p != nil {
+			p[key] = value
 		}
 	}
-
-	return templates, nil
 }
 
 // Option to specify "target" in parameter map. This is used to set which generator
 // to use to generate a config file.
 func WithTarget(target string) util.Option {
-	return func(p util.Params) {
-		if p != nil {
-			p["target"] = target
-		}
-	}
+	return With("target", target)
+}
+
+func WithArgs(args []string) util.Option {
+	return With("args", args)
+}
+
+func WithPluginArgs(pluginArgs map[string]string) util.Option {
+	return With("plugin-args", pluginArgs)
 }
 
 // Option to specify "type" in parameter map. This is not currently used.
 func WithType(_type string) util.Option {
-	return func(p util.Params) {
-		if p != nil {
-			p["type"] = _type
-		}
-	}
+	return With("type", _type)
 }
 
 // Option to the plugin to load
@@ -305,61 +230,20 @@ func GetParams(opts ...util.Option) util.Params {
 	return params
 }
 
-// Wrapper function to slightly abstract away some of the nuances with using gonja
-// into a single function call. This function is *mostly* for convenience and
-// simplication. If no paths are supplied, then no templates will be applied and
-// there will be no output.
-//
-// The "FileList" returns a slice of byte arrays in the same order as the argument
-// list supplied, but with the Jinja templating applied.
-func ApplyTemplates(mappings Mappings, contents ...[]byte) (FileList, error) {
-	var (
-		data    = exec.NewContext(mappings)
-		outputs = FileList{}
-	)
-
-	for _, b := range contents {
-		// load jinja template from file
-		t, err := gonja.FromBytes(b)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read template from file: %w", err)
-		}
-
-		// execute/render jinja template
-		b := bytes.Buffer{}
-		if err = t.Execute(&b, data); err != nil {
-			return nil, fmt.Errorf("failed to execute: %w", err)
-		}
-		outputs = append(outputs, b.Bytes())
+func GetArgs(params util.Params) []string {
+	args := util.Get[[]string](params, "args")
+	if args != nil {
+		return *args
 	}
-
-	return outputs, nil
+	return nil
 }
 
-// Wrapper function similiar to "ApplyTemplates" but takes file paths as arguments.
-// This function will load templates from a file instead of using file contents.
-func ApplyTemplateFromFiles(mappings Mappings, paths ...string) (FileMap, error) {
-	var (
-		data    = exec.NewContext(mappings)
-		outputs = FileMap{}
-	)
-
-	for _, path := range paths {
-		// load jinja template from file
-		t, err := gonja.FromFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read template from file: %w", err)
-		}
-
-		// execute/render jinja template
-		b := bytes.Buffer{}
-		if err = t.Execute(&b, data); err != nil {
-			return nil, fmt.Errorf("failed to execute: %w", err)
-		}
-		outputs[path] = b.Bytes()
+func GetPluginArgs(params util.Params) map[string]string {
+	pluginArgs := util.Get[map[string]string](params, "plugin-args")
+	if pluginArgs != nil {
+		return *pluginArgs
 	}
-
-	return outputs, nil
+	return nil
 }
 
 // Generate() is the main function to generate a collection of files and returns them as a map.
@@ -388,13 +272,14 @@ func Generate(config *configurator.Config, params Params) (FileMap, error) {
 // It is also call when running the configurator as a service with the "/generate" route.
 //
 // TODO: Separate loading plugins so we can load them once when running as a service.
+// TODO: Handle host/port arguments from CLI flags correctly
 func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, error) {
 	// load generator plugins to generate configs or to print
 	var (
 		client = configurator.NewSmdClient(
-			configurator.WithHost(config.SmdClient.Host),
-			configurator.WithPort(config.SmdClient.Port),
-			configurator.WithAccessToken(config.AccessToken),
+			configurator.WithClientHost(config.SmdClient.Host),
+			configurator.WithClientPort(config.SmdClient.Port),
+			configurator.WithClientAccessToken(config.AccessToken),
 			configurator.WithCertPoolFile(config.CertPath),
 		)
 	)
@@ -426,5 +311,7 @@ func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, er
 		config,
 		WithTarget(generator.GetName()),
 		WithClient(client),
+		WithPluginArgs(params.PluginArgs),
+		WithArgs(params.Args),
 	)
 }
