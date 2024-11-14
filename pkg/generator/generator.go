@@ -12,6 +12,7 @@ import (
 	"github.com/OpenCHAMI/configurator/pkg/util"
 	"github.com/nikolalohinski/gonja/v2"
 	"github.com/nikolalohinski/gonja/v2/exec"
+	"github.com/rs/zerolog/log"
 )
 
 type (
@@ -440,6 +441,7 @@ func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, er
 	generator, ok = DefaultGenerators[params.Target]
 	if !ok {
 		// only load the plugin needed for this target if we don't find default
+		log.Error().Msg("did not find target in default generators")
 		generator, err = LoadPlugin(target.PluginPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load plugin: %w", err)

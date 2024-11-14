@@ -76,7 +76,7 @@ func (s *Server) Serve() error {
 			var err error
 			tokenAuth, err = configurator.FetchPublicKeyFromURL(s.Config.Server.Jwks.Uri)
 			if err != nil {
-				logrus.Errorf("failed to fetch JWKS: %w", err)
+				logrus.Errorf("failed to fetch JWKS: %v", err)
 				continue
 			}
 			break
@@ -138,7 +138,7 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 	// generate a new config file from supplied params
 	outputs, err := generator.GenerateWithTarget(s.Config, s.GeneratorParams)
 	if err != nil {
-		writeErrorResponse(w, "failed to generate file: %w", err)
+		writeErrorResponse(w, "failed to generate file: %v", err)
 		return
 	}
 
@@ -146,12 +146,12 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 	tmp := generator.ConvertContentsToString(outputs)
 	b, err := json.Marshal(tmp)
 	if err != nil {
-		writeErrorResponse(w, "failed to marshal output: %w", err)
+		writeErrorResponse(w, "failed to marshal output: %v", err)
 		return
 	}
 	_, err = w.Write(b)
 	if err != nil {
-		writeErrorResponse(w, "failed to write response: %w", err)
+		writeErrorResponse(w, "failed to write response: %v", err)
 		return
 	}
 }
@@ -163,7 +163,7 @@ func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
 func (s *Server) ManageTemplates(w http.ResponseWriter, r *http.Request) {
 	_, err := w.Write([]byte("this is not implemented yet"))
 	if err != nil {
-		writeErrorResponse(w, "failed to write response: %w", err)
+		writeErrorResponse(w, "failed to write response: %v", err)
 		return
 	}
 }
