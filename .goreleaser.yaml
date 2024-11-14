@@ -5,12 +5,14 @@ before:
     - go mod download
     - make plugins
 builds:
-  - env:
-      - CGO_ENABLED=1
+  - id: "configurator"
     goos:
-      - linux
+        - linux
     goarch:
       - amd64
+      - arm64
+    flags:
+        - -tags:all
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of uname.
