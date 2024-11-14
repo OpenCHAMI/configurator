@@ -14,28 +14,45 @@ import (
 	"github.com/nikolalohinski/gonja/v2/exec"
 )
 
-type Mappings map[string]any
-type FileMap map[string][]byte
-type FileList [][]byte
-type Template []byte
+type (
+	Mappings map[string]any
+	FileMap  map[string][]byte
+	FileList [][]byte
+	Template []byte
 
-// Generator interface used to define how files are created. Plugins can
-// be created entirely independent of the main driver program.
-type Generator interface {
-	GetName() string
-	GetVersion() string
-	GetDescription() string
-	Generate(config *configurator.Config, opts ...util.Option) (FileMap, error)
-}
+	// Generator interface used to define how files are created. Plugins can
+	// be created entirely independent of the main driver program.
+	Generator interface {
+		GetName() string
+		GetVersion() string
+		GetDescription() string
+		Generate(config *configurator.Config, opts ...util.Option) (FileMap, error)
+	}
 
-// Params defined and used by the "generate" subcommand.
-type Params struct {
-	Args          []string
-	Generators    map[string]Generator
-	TemplatePaths []string
-	PluginPath    string
-	Target        string
-	Verbose       bool
+	// Params defined and used by the "generate" subcommand.
+	Params struct {
+		Args          []string
+		TemplatePaths []string
+		PluginPath    string
+		Target        string
+		Verbose       bool
+	}
+)
+
+var DefaultGenerators = createDefaultGenerators()
+
+func createDefaultGenerators() map[string]Generator {
+	var (
+		generatorMap = map[string]Generator{}
+		generators   = []Generator{
+			&Conman{}, &DHCPd{}, &DNSMasq{}, &Hostfile{},
+			&Powerman{}, &Syslog{}, &Warewulf{},
+		}
+	)
+	for _, g := range generators {
+		generatorMap[g.GetName()] = g
+	}
+	return generatorMap
 }
 
 // Converts the file outputs from map[string][]byte to map[string]string.
@@ -397,6 +414,10 @@ func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, er
 			configurator.WithAccessToken(config.AccessToken),
 			configurator.WithCertPoolFile(config.CertPath),
 		)
+		target    configurator.Target
+		generator Generator
+		err       error
+		ok        bool
 	)
 
 	// check if a target is supplied
@@ -405,7 +426,7 @@ func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, er
 	}
 
 	// load target information from config
-	target, ok := config.Targets[params.Target]
+	target, ok = config.Targets[params.Target]
 	if !ok {
 		return nil, fmt.Errorf("target not found in config")
 	}
@@ -415,10 +436,14 @@ func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, er
 		target.PluginPath = params.PluginPath
 	}
 
-	// only load the plugin needed for this target
-	generator, err := LoadPlugin(target.PluginPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load plugin: %w", err)
+	// check if generator is built-in first before loading
+	generator, ok = DefaultGenerators[params.Target]
+	if !ok {
+		// only load the plugin needed for this target if we don't find default
+		generator, err = LoadPlugin(target.PluginPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load plugin: %w", err)
+		}
 	}
 
 	// run the generator plugin from target passed

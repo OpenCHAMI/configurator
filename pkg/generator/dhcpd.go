@@ -1,31 +1,30 @@
-package main
+package generator
 
 import (
 	"fmt"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
-	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
-type Dhcpd struct{}
+type DHCPd struct{}
 
-func (g *Dhcpd) GetName() string {
+func (g *DHCPd) GetName() string {
 	return "dhcpd"
 }
 
-func (g *Dhcpd) GetVersion() string {
+func (g *DHCPd) GetVersion() string {
 	return util.GitCommit()
 }
 
-func (g *Dhcpd) GetDescription() string {
+func (g *DHCPd) GetDescription() string {
 	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
-func (g *Dhcpd) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
+func (g *DHCPd) Generate(config *configurator.Config, opts ...util.Option) (FileMap, error) {
 	var (
-		params                                         = generator.GetParams(opts...)
-		client                                         = generator.GetClient(params)
+		params                                         = GetParams(opts...)
+		client                                         = GetClient(params)
 		targetKey                                      = params["target"].(string)
 		target                                         = config.Targets[targetKey]
 		compute_nodes                                  = ""
@@ -64,7 +63,7 @@ func (g *Dhcpd) Generate(config *configurator.Config, opts ...util.Option) (gene
 			fmt.Printf("")
 		}
 	}
-	return generator.ApplyTemplateFromFiles(generator.Mappings{
+	return ApplyTemplateFromFiles(Mappings{
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),
@@ -72,5 +71,3 @@ func (g *Dhcpd) Generate(config *configurator.Config, opts ...util.Option) (gene
 		"node_entries":       "",
 	}, target.TemplatePaths...)
 }
-
-var Generator Dhcpd

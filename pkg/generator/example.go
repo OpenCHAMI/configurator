@@ -1,4 +1,7 @@
-package main
+//go:build example || plugins
+// +build example plugins
+
+package generator
 
 import (
 	"fmt"

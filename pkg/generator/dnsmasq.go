@@ -1,29 +1,28 @@
-package main
+package generator
 
 import (
 	"fmt"
 	"strings"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
-	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
-type DnsMasq struct{}
+type DNSMasq struct{}
 
-func (g *DnsMasq) GetName() string {
+func (g *DNSMasq) GetName() string {
 	return "dnsmasq"
 }
 
-func (g *DnsMasq) GetVersion() string {
+func (g *DNSMasq) GetVersion() string {
 	return util.GitCommit()
 }
 
-func (g *DnsMasq) GetDescription() string {
+func (g *DNSMasq) GetDescription() string {
 	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
-func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
+func (g *DNSMasq) Generate(config *configurator.Config, opts ...util.Option) (FileMap, error) {
 	// make sure we have a valid config first
 	if config == nil {
 		return nil, fmt.Errorf("invalid config (config is nil)")
@@ -31,8 +30,8 @@ func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (ge
 
 	// set all the defaults for variables
 	var (
-		params                                     = generator.GetParams(opts...)
-		client                                     = generator.GetClient(params)
+		params                                     = GetParams(opts...)
+		client                                     = GetClient(params)
 		targetKey                                  = params["target"].(string) // required param
 		target                                     = config.Targets[targetKey]
 		eths      []configurator.EthernetInterface = nil
@@ -74,12 +73,10 @@ func (g *DnsMasq) Generate(config *configurator.Config, opts ...util.Option) (ge
 	output += "# ====================================================================="
 
 	// apply template substitutions and return output as byte array
-	return generator.ApplyTemplateFromFiles(generator.Mappings{
+	return ApplyTemplateFromFiles(Mappings{
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),
 		"dhcp-hosts":         output,
 	}, target.TemplatePaths...)
 }
-
-var Generator DnsMasq
