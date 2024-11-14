@@ -1,10 +1,9 @@
-package main
+package generator
 
 import (
 	"fmt"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
-	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
@@ -22,10 +21,10 @@ func (g *Conman) GetDescription() string {
 	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
-func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
+func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (FileMap, error) {
 	var (
-		params                                   = generator.GetParams(opts...)
-		client                                   = generator.GetClient(params)
+		params                                   = GetParams(opts...)
+		client                                   = GetClient(params)
 		targetKey                                = params["target"].(string) // required param
 		target                                   = config.Targets[targetKey]
 		eps       []configurator.RedfishEndpoint = nil
@@ -56,7 +55,7 @@ func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (gen
 	consoles += "# ====================================================================="
 
 	// apply template substitutions and return output as byte array
-	return generator.ApplyTemplateFromFiles(generator.Mappings{
+	return ApplyTemplateFromFiles(Mappings{
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),
@@ -65,5 +64,3 @@ func (g *Conman) Generate(config *configurator.Config, opts ...util.Option) (gen
 		"consoles":           consoles,
 	}, target.TemplatePaths...)
 }
-
-var Generator Conman

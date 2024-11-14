@@ -1,4 +1,4 @@
-package main
+package generator
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
-	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
@@ -24,13 +23,13 @@ func (g *Warewulf) GetDescription() string {
 	return "Configurator generator plugin for 'warewulf' config files."
 }
 
-func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
+func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (FileMap, error) {
 	var (
-		params    = generator.GetParams(opts...)
-		client    = generator.GetClient(params)
+		params    = GetParams(opts...)
+		client    = GetClient(params)
 		targetKey = params["target"].(string)
 		target    = config.Targets[targetKey]
-		outputs   = make(generator.FileMap, len(target.FilePaths)+len(target.TemplatePaths))
+		outputs   = make(FileMap, len(target.FilePaths)+len(target.TemplatePaths))
 	)
 
 	// check if our client is included and is valid
@@ -72,11 +71,11 @@ func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (g
 	nodeEntries := ""
 
 	// load files and templates and copy to outputs
-	files, err := generator.LoadFiles(target.FilePaths...)
+	files, err := LoadFiles(target.FilePaths...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load files: %v", err)
 	}
-	templates, err := generator.ApplyTemplateFromFiles(generator.Mappings{
+	templates, err := ApplyTemplateFromFiles(Mappings{
 		"node_entries": nodeEntries,
 	}, target.TemplatePaths...)
 	if err != nil {
@@ -98,5 +97,3 @@ func (g *Warewulf) Generate(config *configurator.Config, opts ...util.Option) (g
 
 	return outputs, err
 }
-
-var Generator Warewulf

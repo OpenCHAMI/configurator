@@ -1,10 +1,9 @@
-package main
+package generator
 
 import (
 	"fmt"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
-	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
@@ -22,8 +21,6 @@ func (g *Syslog) GetDescription() string {
 	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
-func (g *Syslog) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
+func (g *Syslog) Generate(config *configurator.Config, opts ...util.Option) (FileMap, error) {
 	return nil, fmt.Errorf("plugin does not implement generation function")
 }
-
-var Generator Syslog
