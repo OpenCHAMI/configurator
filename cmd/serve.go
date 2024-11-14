@@ -4,11 +4,15 @@
 package cmd
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/server"
@@ -55,11 +59,31 @@ var serveCmd = &cobra.Command{
 				Retries: config.Server.Jwks.Retries,
 			},
 			GeneratorParams: generator.Params{
-				Args:       args,
-				PluginPath: pluginPath,
+				Args: args,
+				// PluginPath: pluginPath,
 				// Target: target,  // NOTE: targets are set via HTTP requests (ex: curl http://configurator:3334/generate?target=dnsmasq)
 				Verbose: verbose,
 			},
+		}
+
+		// add cert to client if `--cacert` flag is passed
+		if cacertPath != "" {
+			cacert, _ := os.ReadFile(cacertPath)
+			certPool := x509.NewCertPool()
+			certPool.AppendCertsFromPEM(cacert)
+			server.Transport = &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs:            certPool,
+					InsecureSkipVerify: true,
+				},
+				DisableKeepAlives: true,
+				Dial: (&net.Dialer{
+					Timeout:   120 * time.Second,
+					KeepAlive: 120 * time.Second,
+				}).Dial,
+				TLSHandshakeTimeout:   120 * time.Second,
+				ResponseHeaderTimeout: 120 * time.Second,
+			}
 		}
 
 		// start listening with the server
@@ -78,7 +102,7 @@ var serveCmd = &cobra.Command{
 func init() {
 	serveCmd.Flags().StringVar(&config.Server.Host, "host", config.Server.Host, "set the server host")
 	serveCmd.Flags().IntVar(&config.Server.Port, "port", config.Server.Port, "set the server port")
-	serveCmd.Flags().StringVar(&pluginPath, "plugin", "", "set the generator plugins directory path")
+	// serveCmd.Flags().StringVar(&pluginPath, "plugin", "", "set the generator plugins directory path")
 	serveCmd.Flags().StringVar(&config.Server.Jwks.Uri, "jwks-uri", config.Server.Jwks.Uri, "set the JWKS url to fetch public key")
 	serveCmd.Flags().IntVar(&config.Server.Jwks.Retries, "jwks-fetch-retries", config.Server.Jwks.Retries, "set the JWKS fetch retry count")
 	rootCmd.AddCommand(serveCmd)
