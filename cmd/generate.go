@@ -20,7 +20,6 @@ var (
 	tokenFetchRetries int
 	templatePaths     []string
 	pluginPath        string
-	cacertPath        string
 	useCompression    bool
 )
 
@@ -175,7 +174,6 @@ func init() {
 	generateCmd.Flags().StringSliceVar(&templatePaths, "template", []string{}, "set the paths for the Jinja 2 templates to use")
 	generateCmd.Flags().StringVar(&pluginPath, "plugin", "", "set the generator plugin path")
 	generateCmd.Flags().StringVarP(&outputPath, "output", "o", "", "set the output path for config targets")
-	generateCmd.Flags().StringVar(&cacertPath, "cacert", "", "path to CA cert. (defaults to system CAs)")
 	generateCmd.Flags().IntVar(&tokenFetchRetries, "fetch-retries", 5, "set the number of retries to fetch an access token")
 	generateCmd.Flags().StringVar(&remoteHost, "host", "http://localhost", "set the remote host")
 	generateCmd.Flags().IntVar(&remotePort, "port", 80, "set the remote port")
