@@ -6,6 +6,7 @@ import (
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
 	"github.com/OpenCHAMI/configurator/pkg/util"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -41,12 +42,13 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "./config.yaml", "set the config path")
+	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "set the config path")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "set to enable verbose output")
 	rootCmd.PersistentFlags().StringVar(&cacertPath, "cacert", "", "path to CA cert. (defaults to system CAs)")
 }
 
 func initConfig() {
+	// empty from not being set
 	if configPath != "" {
 		exists, err := util.PathExists(configPath)
 		if err != nil {
@@ -55,9 +57,13 @@ func initConfig() {
 		} else if exists {
 			config = configurator.LoadConfig(configPath)
 		} else {
-			config = configurator.NewConfig()
+			// show error and exit since a path was specified
+			log.Error().Str("path", configPath).Msg("config file not found")
+			os.Exit(1)
 		}
 	} else {
+		// set to the default value and create a new one
+		configPath = "./config.yaml"
 		config = configurator.NewConfig()
 	}
 
