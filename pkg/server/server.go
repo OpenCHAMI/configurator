@@ -4,8 +4,11 @@
 package server
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -60,11 +63,31 @@ func New(config *configurator.Config) *Server {
 }
 
 // Main function to start up configurator as a service.
-func (s *Server) Serve() error {
+func (s *Server) Serve(cacertPath string) error {
 	// create client just for the server to use to fetch data from SMD
-	_ = &configurator.SmdClient{
+	client := &configurator.SmdClient{
 		Host: s.Config.SmdClient.Host,
 		Port: s.Config.SmdClient.Port,
+	}
+
+	// add cert to client if `--cacert` flag is passed
+	if cacertPath != "" {
+		cacert, _ := os.ReadFile(cacertPath)
+		certPool := x509.NewCertPool()
+		certPool.AppendCertsFromPEM(cacert)
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:            certPool,
+				InsecureSkipVerify: true,
+			},
+			DisableKeepAlives: true,
+			Dial: (&net.Dialer{
+				Timeout:   120 * time.Second,
+				KeepAlive: 120 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   120 * time.Second,
+			ResponseHeaderTimeout: 120 * time.Second,
+		}
 	}
 
 	// set the server address with config values
@@ -104,12 +127,12 @@ func (s *Server) Serve() error {
 			)
 
 			// protected routes if using auth
-			r.HandleFunc("/generate", s.Generate)
+			r.HandleFunc("/generate", s.Generate(client))
 			r.HandleFunc("/templates", s.ManageTemplates)
 		})
 	} else {
 		// public routes without auth
-		router.HandleFunc("/generate", s.Generate)
+		router.HandleFunc("/generate", s.Generate(client))
 		router.HandleFunc("/templates", s.ManageTemplates)
 	}
 
@@ -127,32 +150,36 @@ func (s *Server) Close() {
 // This is the corresponding service function to generate templated files, that
 // works similarly to the CLI variant. This function takes similiar arguments as
 // query parameters that are included in the HTTP request URL.
-func (s *Server) Generate(w http.ResponseWriter, r *http.Request) {
-	// get all of the expect query URL params and validate
-	s.GeneratorParams.Target = r.URL.Query().Get("target")
-	if s.GeneratorParams.Target == "" {
-		writeErrorResponse(w, "must specify a target")
-		return
-	}
+func (s *Server) Generate(client *configurator.SmdClient) func(w http.ResponseWriter, r *http.Request) {
 
-	// generate a new config file from supplied params
-	outputs, err := generator.GenerateWithTarget(s.Config, s.GeneratorParams)
-	if err != nil {
-		writeErrorResponse(w, "failed to generate file: %v", err)
-		return
-	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		// get all of the expect query URL params and validate
+		s.GeneratorParams.Target = r.URL.Query().Get("target")
+		s.GeneratorParams.Client = client
+		if s.GeneratorParams.Target == "" {
+			writeErrorResponse(w, "must specify a target")
+			return
+		}
 
-	// marshal output to JSON then send response to client
-	tmp := generator.ConvertContentsToString(outputs)
-	b, err := json.Marshal(tmp)
-	if err != nil {
-		writeErrorResponse(w, "failed to marshal output: %v", err)
-		return
-	}
-	_, err = w.Write(b)
-	if err != nil {
-		writeErrorResponse(w, "failed to write response: %v", err)
-		return
+		// generate a new config file from supplied params
+		outputs, err := generator.GenerateWithTarget(s.Config, s.GeneratorParams)
+		if err != nil {
+			writeErrorResponse(w, "failed to generate file: %v", err)
+			return
+		}
+
+		// marshal output to JSON then send response to client
+		tmp := generator.ConvertContentsToString(outputs)
+		b, err := json.Marshal(tmp)
+		if err != nil {
+			writeErrorResponse(w, "failed to marshal output: %v", err)
+			return
+		}
+		_, err = w.Write(b)
+		if err != nil {
+			writeErrorResponse(w, "failed to write response: %v", err)
+			return
+		}
 	}
 }
 

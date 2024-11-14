@@ -4,15 +4,11 @@
 package cmd
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/server"
@@ -48,7 +44,7 @@ var serveCmd = &cobra.Command{
 			fmt.Printf("%v\n", string(b))
 		}
 
-		// set up the routes and start the server
+		// set up the routes and start the serve
 		server := server.Server{
 			Config: &config,
 			Server: &http.Server{
@@ -66,28 +62,8 @@ var serveCmd = &cobra.Command{
 			},
 		}
 
-		// add cert to client if `--cacert` flag is passed
-		if cacertPath != "" {
-			cacert, _ := os.ReadFile(cacertPath)
-			certPool := x509.NewCertPool()
-			certPool.AppendCertsFromPEM(cacert)
-			server.Transport = &http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs:            certPool,
-					InsecureSkipVerify: true,
-				},
-				DisableKeepAlives: true,
-				Dial: (&net.Dialer{
-					Timeout:   120 * time.Second,
-					KeepAlive: 120 * time.Second,
-				}).Dial,
-				TLSHandshakeTimeout:   120 * time.Second,
-				ResponseHeaderTimeout: 120 * time.Second,
-			}
-		}
-
 		// start listening with the server
-		err := server.Serve()
+		err := server.Serve(cacertPath)
 		if errors.Is(err, http.ErrServerClosed) {
 			if verbose {
 				fmt.Printf("Server closed.")

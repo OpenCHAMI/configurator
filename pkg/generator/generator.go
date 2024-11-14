@@ -36,6 +36,7 @@ type (
 		TemplatePaths []string
 		PluginPath    string
 		Target        string
+		Client        *configurator.SmdClient
 		Verbose       bool
 	}
 )
@@ -409,17 +410,24 @@ func Generate(config *configurator.Config, params Params) (FileMap, error) {
 func GenerateWithTarget(config *configurator.Config, params Params) (FileMap, error) {
 	// load generator plugins to generate configs or to print
 	var (
+		client    configurator.SmdClient
+		target    configurator.Target
+		generator Generator
+		err       error
+		ok        bool
+	)
+
+	// check if we have a client from params first and create new one if not
+	if params.Client == nil {
 		client = configurator.NewSmdClient(
 			configurator.WithHost(config.SmdClient.Host),
 			configurator.WithPort(config.SmdClient.Port),
 			configurator.WithAccessToken(config.AccessToken),
 			configurator.WithCertPoolFile(config.CertPath),
 		)
-		target    configurator.Target
-		generator Generator
-		err       error
-		ok        bool
-	)
+	} else {
+		client = *params.Client
+	}
 
 	// check if a target is supplied
 	if len(params.Args) == 0 && params.Target == "" {
