@@ -5,3 +5,4 @@
 **.conf
 **.ignore
 **.tar.gz
+dist/
