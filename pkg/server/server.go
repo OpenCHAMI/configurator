@@ -115,6 +115,7 @@ func (s *Server) Serve() error {
 
 			// protected routes if using auth
 			r.HandleFunc("/generate", s.Generate(opts...))
+			r.HandleFunc("/status", s.GetStatus)
 			r.Post("/targets", s.createTarget)
 		})
 	} else {
@@ -182,6 +183,19 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 			writeErrorResponse(w, "failed to write response: %v", err)
 			return
 		}
+	}
+}
+
+func (s *Server) GetStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	data := map[string]any{
+		"code":    200,
+		"message": "Configurator is healthy",
+	}
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		fmt.Printf("failed to encode JSON: %v\n", err)
+		return
 	}
 }
 
