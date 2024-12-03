@@ -3,10 +3,12 @@ package generator
 import (
 	"fmt"
 	"maps"
+	"strings"
 
 	"github.com/OpenCHAMI/configurator/pkg/client"
 	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/util"
+	"github.com/caarlos0/log"
 )
 
 type Warewulf struct{}
@@ -28,6 +30,7 @@ func (g *Warewulf) Generate(config *config.Config, params Params) (FileMap, erro
 		smdClient   = client.NewSmdClient(params.ClientOpts...)
 		outputs     = make(FileMap, len(params.Templates))
 		nodeEntries = ""
+		paths       = []string{}
 	)
 
 	// if we have a client, try making the request for the ethernet interfaces
@@ -65,11 +68,11 @@ func (g *Warewulf) Generate(config *config.Config, params Params) (FileMap, erro
 
 	// print message if verbose param is found
 	if params.Verbose {
-		fmt.Printf("templates and files loaded: \n")
 		for path, _ := range outputs {
-			fmt.Printf("\t%s", path)
+			paths = append(paths, path)
 		}
 	}
+	log.Info().Str("paths", strings.Join(paths, ":")).Msg("templates and files loaded: \n")
 
 	return outputs, err
 }
