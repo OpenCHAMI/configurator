@@ -85,6 +85,7 @@ var generateCmd = &cobra.Command{
 			}
 
 			// if we have more than one target and output is set, create configs in directory
+			outputMap := generator.ConvertContentsToString(outputBytes)
 			writeOutput(outputBytes, len(targets), len(outputMap))
 		}
 	},
@@ -106,6 +107,7 @@ func RunTargets(conf *config.Config, args []string, targets ...string) {
 		}
 
 		// if we have more than one target and output is set, create configs in directory
+		outputMap := generator.ConvertContentsToString(outputBytes)
 		writeOutput(outputBytes, len(targets), len(outputMap))
 
 		// remove any targets that are the same as current to prevent infinite loop
