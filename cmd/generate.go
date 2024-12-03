@@ -50,8 +50,9 @@ var generateCmd = &cobra.Command{
 		if verbose {
 			b, err := json.MarshalIndent(conf, "", "  ")
 			if err != nil {
-				fmt.Printf("failed to marshal conf: %v\n", err)
+				log.Error().Err(err).Printf("failed to marshal config")
 			}
+			// print the config file as JSON
 			fmt.Printf("%v\n", string(b))
 		}
 
@@ -92,17 +93,17 @@ var generateCmd = &cobra.Command{
 }
 
 // Generate files by supplying a list of targets as string values. Currently,
-// targets are defined statically in a conf file. Targets are ran recursively
+// targets are defined statically in a config file. Targets are ran recursively
 // if more targets are nested in a defined target, but will not run additional
 // child targets if it is the same as the parent.
 //
 // NOTE: This may be changed in the future how this is done.
 func RunTargets(conf *config.Config, args []string, targets ...string) {
-	// generate conf with each supplied target
+	// generate config with each supplied target
 	for _, target := range targets {
 		outputBytes, err := generator.GenerateWithTarget(conf, target)
 		if err != nil {
-			log.Error().Err(err).Msg("failed to generate conf")
+			log.Error().Err(err).Msg("failed to generate config")
 			os.Exit(1)
 		}
 

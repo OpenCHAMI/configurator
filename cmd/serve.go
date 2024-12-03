@@ -32,7 +32,7 @@ var serveCmd = &cobra.Command{
 			}
 		}
 
-		// show conf as JSON and generators if verbose
+		// show config as JSON and generators if verbose
 		if verbose {
 			b, err := json.MarshalIndent(conf, "", "\t")
 			if err != nil {
@@ -44,9 +44,7 @@ var serveCmd = &cobra.Command{
 		// set up the routes and start the serve
 		server := server.Server{
 			Config: &conf,
-			Server: &http.Server{
-				Addr: fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port),
-			},
+			Server: &http.Server{Addr: conf.Server.Host},
 			Jwks: server.Jwks{
 				Uri:     conf.Server.Jwks.Uri,
 				Retries: conf.Server.Jwks.Retries,
@@ -67,8 +65,7 @@ var serveCmd = &cobra.Command{
 }
 
 func init() {
-	serveCmd.Flags().StringVar(&conf.Server.Host, "host", conf.Server.Host, "set the server host")
-	serveCmd.Flags().IntVar(&conf.Server.Port, "port", conf.Server.Port, "set the server port")
+	serveCmd.Flags().StringVar(&conf.Server.Host, "host", conf.Server.Host, "set the server host and port")
 	// serveCmd.Flags().StringVar(&pluginPath, "plugin", "", "set the generator plugins directory path")
 	serveCmd.Flags().StringVar(&conf.Server.Jwks.Uri, "jwks-uri", conf.Server.Jwks.Uri, "set the JWKS url to fetch public key")
 	serveCmd.Flags().IntVar(&conf.Server.Jwks.Retries, "jwks-fetch-retries", conf.Server.Jwks.Retries, "set the JWKS fetch retry count")
