@@ -1,21 +1,14 @@
-package configurator
+package config
 
 import (
 	"log"
 	"os"
 	"path/filepath"
 
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/client"
 	"gopkg.in/yaml.v2"
 )
-
-type Options struct{}
-
-type Target struct {
-	PluginPath    string   `yaml:"plugin,omitempty"`
-	TemplatePaths []string `yaml:"templates,omitempty"`
-	FilePaths     []string `yaml:"files,omitempty"`
-	RunTargets    []string `yaml:"targets,omitempty"`
-}
 
 type Jwks struct {
 	Uri     string `yaml:"uri"`
@@ -29,35 +22,34 @@ type Server struct {
 }
 
 type Config struct {
-	Version     string            `yaml:"version,omitempty"`
-	Server      Server            `yaml:"server,omitempty"`
-	SmdClient   SmdClient         `yaml:"smd,omitempty"`
-	AccessToken string            `yaml:"access-token,omitempty"`
-	Targets     map[string]Target `yaml:"targets,omitempty"`
-	PluginDirs  []string          `yaml:"plugins,omitempty"`
-	CertPath    string            `yaml:"cacert,omitempty"`
-	Options     Options           `yaml:"options,omitempty"`
+	Version     string                         `yaml:"version,omitempty"`
+	Server      Server                         `yaml:"server,omitempty"`
+	SmdClient   client.SmdClient               `yaml:"smd,omitempty"`
+	AccessToken string                         `yaml:"access-token,omitempty"`
+	Targets     map[string]configurator.Target `yaml:"targets,omitempty"`
+	PluginDirs  []string                       `yaml:"plugins,omitempty"`
+	CertPath    string                         `yaml:"cacert,omitempty"`
 }
 
 // Creates a new config with default parameters.
-func NewConfig() Config {
+func New() Config {
 	return Config{
 		Version: "",
-		SmdClient: SmdClient{
+		SmdClient: client.SmdClient{
 			Host: "http://127.0.0.1",
 			Port: 27779,
 		},
-		Targets: map[string]Target{
-			"dnsmasq": Target{
-				PluginPath:    "",
+		Targets: map[string]configurator.Target{
+			"dnsmasq": configurator.Target{
+				Plugin:        "",
 				TemplatePaths: []string{},
 			},
-			"conman": Target{
-				PluginPath:    "",
+			"conman": configurator.Target{
+				Plugin:        "",
 				TemplatePaths: []string{},
 			},
-			"warewulf": Target{
-				PluginPath: "",
+			"warewulf": configurator.Target{
+				Plugin: "",
 				TemplatePaths: []string{
 					"templates/warewulf/defaults/node.jinja",
 					"templates/warewulf/defaults/provision.jinja",
@@ -74,12 +66,11 @@ func NewConfig() Config {
 				Retries: 5,
 			},
 		},
-		Options: Options{},
 	}
 }
 
-func LoadConfig(path string) Config {
-	var c Config = NewConfig()
+func Load(path string) Config {
+	var c Config = New()
 	file, err := os.ReadFile(path)
 	if err != nil {
 		log.Printf("failed to read config file: %v\n", err)
@@ -93,7 +84,7 @@ func LoadConfig(path string) Config {
 	return c
 }
 
-func (config *Config) SaveConfig(path string) {
+func (config *Config) Save(path string) {
 	path = filepath.Clean(path)
 	if path == "" || path == "." {
 		path = "config.yaml"
@@ -110,12 +101,12 @@ func (config *Config) SaveConfig(path string) {
 	}
 }
 
-func SaveDefaultConfig(path string) {
+func SaveDefault(path string) {
 	path = filepath.Clean(path)
 	if path == "" || path == "." {
 		path = "config.yaml"
 	}
-	var c = NewConfig()
+	var c = New()
 	data, err := yaml.Marshal(c)
 	if err != nil {
 		log.Printf("failed to marshal config: %v\n", err)

@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"os"
 
-	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
 var (
-	config      configurator.Config
+	conf        config.Config
 	configPath  string
 	cacertPath  string
 	verbose     bool
@@ -19,12 +19,11 @@ var (
 	outputPath  string
 	accessToken string
 	remoteHost  string
-	remotePort  int
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "configurator",
-	Short: "Tool for building common config files",
+	Short: "Dynamically generate files defined by generators",
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			cmd.Help()
@@ -55,7 +54,7 @@ func initConfig() {
 			fmt.Printf("failed to load config")
 			os.Exit(1)
 		} else if exists {
-			config = configurator.LoadConfig(configPath)
+			conf = config.Load(configPath)
 		} else {
 			// show error and exit since a path was specified
 			log.Error().Str("path", configPath).Msg("config file not found")
@@ -64,7 +63,7 @@ func initConfig() {
 	} else {
 		// set to the default value and create a new one
 		configPath = "./config.yaml"
-		config = configurator.NewConfig()
+		conf = config.New()
 	}
 
 	//
@@ -74,6 +73,6 @@ func initConfig() {
 	// set the JWKS url if we find the CONFIGURATOR_JWKS_URL environment variable
 	jwksUrl := os.Getenv("CONFIGURATOR_JWKS_URL")
 	if jwksUrl != "" {
-		config.Server.Jwks.Uri = jwksUrl
+		conf.Server.Jwks.Uri = jwksUrl
 	}
 }
