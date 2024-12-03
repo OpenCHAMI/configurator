@@ -27,7 +27,7 @@ var serveCmd = &cobra.Command{
 				conf.AccessToken = accessToken
 			} else {
 				if verbose {
-					fmt.Printf("No token found. Continuing without one...\n")
+					log.Warn().Msg("No token found. Continuing without one...\n")
 				}
 			}
 		}

@@ -51,7 +51,7 @@ func initConfig() {
 	if configPath != "" {
 		exists, err := util.PathExists(configPath)
 		if err != nil {
-			fmt.Printf("failed to load config")
+			log.Error().Err(err).Str("path", configPath).Msg("failed to load config")
 			os.Exit(1)
 		} else if exists {
 			conf = config.Load(configPath)
