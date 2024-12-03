@@ -57,9 +57,9 @@ Once the server is up and listening for HTTP requests, you can try making a requ
 
 ```bash
 export ACCESS_TOKEN=eyJhbGciOiJIUzI1NiIs...
-curl http://127.0.0.1:3334/generate?target=dnsmasq -X GET -H "Authorization: Bearer $ACCESS_TOKEN" --cacert ochami.pem
+curl http://127.0.0.1:3334/generate?target=coredhcp -X GET -H "Authorization: Bearer $ACCESS_TOKEN" --cacert ochami.pem
 # ...or...
-./configurator fetch --target dnsmasq --host http://127.0.0.1:3334 --cacert ochami.pem
+./configurator fetch --target coredhcp --host http://127.0.0.1:3334 --cacert ochami.pem
 ```
 
 This will do the same thing as the `generate` subcommand, but through a GET request where the file contents is returned in the response. The access token is only required if the `CONFIGURATOR_JWKS_URL` environment variable is set when starting the server with `serve`. The `ACCESS_TOKEN` environment variable is passed to `curl` using the `Authorization` header and expects a token as a JWT.
