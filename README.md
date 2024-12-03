@@ -4,7 +4,7 @@ The `configurator` is an extensible tool that is capable of dynamically generati
 
 ## Building and Usage
 
-The `configurator` is built using standard `go` build tools. The project separates the client and server components using build tags. To get started, clone the project, download the dependencies, and build the project:
+The `configurator` is built using standard `go` build tools. The project separates the client, server, and generator components using build tags. To get started, clone the project, download the dependencies, and build the project:
 
 ```bash
 git clone https://github.com/OpenCHAMI/configurator.git
@@ -23,20 +23,20 @@ After you build the program, run the following command to use the tool:
 
 ```bash
 export ACCESS_TOKEN=eyJhbGciOiJIUzI1NiIs...
-./configurator generate --config config.yaml --target dnsmasq -o dnsmasq.conf --cacert configurator.pem
+./configurator generate --config config.yaml --target coredhcp -o coredhcp.conf --cacert ochami.pem
 ```
 
-This will generate a new `dnsmasq` config file based on the Jinja 2 template specified in the config file for "dnsmasq". The files will be written to `dnsmasq.conf` as specified with the `-o/--output` flag. The `--target` flag specifies the type of config file to generate by its name (see the [`Creating Generator Plugins`](#creating-generator-plugins) section for details).
+This will generate a new `coredhcp` config file based on the Jinja 2 template specified in the config file for "coredhcp". The files will be written to `coredhcp.conf` as specified with the `-o/--output` flag. The `--target` flag specifies the type of config file to generate by its name (see the [`Creating Generator Plugins`](#creating-generator-plugins) section for details).
 
 In other words, there should be an entry in the config file that looks like this:
 
 ```yaml
 ...
 targets:
-  dnsmasq:
-    plugin: "lib/dnsmasq.so"  # optional, if we want to use a plugin instead
+  coredhcp:
+    plugin: "lib/coredhcp.so"  # optional, if we want to use an external plugin instead
     templates:
-      - templates/dnsmasq.j2
+      - templates/coredhcp.j2
 ...
 
 ```
@@ -57,9 +57,9 @@ Once the server is up and listening for HTTP requests, you can try making a requ
 
 ```bash
 export ACCESS_TOKEN=eyJhbGciOiJIUzI1NiIs...
-curl http://127.0.0.1:3334/generate?target=dnsmasq -X GET -H "Authorization: Bearer $ACCESS_TOKEN" --cacert configurator.pem
+curl http://127.0.0.1:3334/generate?target=dnsmasq -X GET -H "Authorization: Bearer $ACCESS_TOKEN" --cacert ochami.pem
 # ...or...
-./configurator fetch --target dnsmasq --host http://127.0.0.1:3334 --cacert configurator.pem
+./configurator fetch --target dnsmasq --host http://127.0.0.1:3334 --cacert ochami.pem
 ```
 
 This will do the same thing as the `generate` subcommand, but through a GET request where the file contents is returned in the response. The access token is only required if the `CONFIGURATOR_JWKS_URL` environment variable is set when starting the server with `serve`. The `ACCESS_TOKEN` environment variable is passed to `curl` using the `Authorization` header and expects a token as a JWT.
@@ -84,7 +84,7 @@ Then, run the Docker container similarly to running the binary.
 
 ```bash
 export ACCESS_TOKEN=eyJhbGciOiJIUzI1NiIs...
-docker run ghcr.io/openchami/configurator:latest configurator generate --config config.yaml --target dnsmasq -o dnsmasq.conf --cacert configurator.pem
+docker run ghcr.io/openchami/configurator:latest configurator generate --config config.yaml --target coredhcp -o coredhcp.conf --cacert configurator.pem
 ```
 
 ### Creating Generator Plugins
@@ -177,25 +177,15 @@ server:         # Server-related parameters when using as service
     uri: ""
     retries: 5
 smd:            # SMD-related parameters
-  host: http://127.0.0.1
-  port: 27779
+  host: http://127.0.0.1:27779
 plugins:        # path to plugin directories
   - "lib/"
 targets:        # targets to call with --target flag
-  dnsmasq:
+  coredhcp:
     templates:
-      - templates/dnsmasq.jinja
-  warewulf:
-    templates:  # files using Jinja templating
-      - templates/warewulf/vnfs/dhcpd-template.jinja
-      - templates/warewulf/vnfs/dnsmasq-template.jinja
+      - templates/coredhcp.j2
     files:      # files to be copied without templating
-      - templates/warewulf/defaults/provision.jinja
-      - templates/warewulf/defaults/node.jinja
-      - templates/warewulf/filesystem/examples/*
-      - templates/warewulf/vnfs/*
-      - templates/warewulf/bootstrap.jinja
-      - templates/warewulf/database.jinja
+      - extra/nodes.conf
     targets:    # additional targets to run (does not run recursively)
       - dnsmasq
 ```
@@ -209,7 +199,6 @@ The `configurator` project includes a collection of tests focused on verifying p
 ```bash
 go test ./tests/generate_test.go --tags=all
 ```
-
 
 ## Known Issues
 
