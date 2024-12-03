@@ -19,7 +19,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
-	"github.com/sirupsen/logrus"
 
 	openchami_authenticator "github.com/openchami/chi-middleware/auth"
 	openchami_logger "github.com/openchami/chi-middleware/log"
@@ -71,6 +70,10 @@ func New(conf *config.Config) *Server {
 
 // Main function to start up configurator as a service.
 func (s *Server) Serve() error {
+	// Setup logger
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	logger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	// set the server address with config values
 	s.Server.Addr = s.Config.Server.Host
 
@@ -80,16 +83,12 @@ func (s *Server) Serve() error {
 			var err error
 			tokenAuth, err = configurator.FetchPublicKeyFromURL(s.Config.Server.Jwks.Uri)
 			if err != nil {
-				logrus.Errorf("failed to fetch JWKS: %v", err)
+				log.Error().Err(err).Msgf("failed to fetch JWKS")
 				continue
 			}
 			break
 		}
 	}
-
-	// Setup logger
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	logger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	// create client with opts to use to fetch data from SMD
 	opts := []client.Option{
