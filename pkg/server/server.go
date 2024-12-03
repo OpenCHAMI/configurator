@@ -116,7 +116,6 @@ func (s *Server) Serve() error {
 
 			// protected routes if using auth
 			r.HandleFunc("/generate", s.Generate(opts...))
-			r.HandleFunc("/status", s.GetStatus)
 			r.Post("/targets", s.createTarget)
 		})
 	} else {
@@ -126,6 +125,7 @@ func (s *Server) Serve() error {
 	}
 
 	// always available public routes go here (none at the moment)
+	router.HandleFunc("/status", s.GetStatus)
 
 	s.Handler = router
 	return s.ListenAndServe()
