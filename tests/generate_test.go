@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/server"
 	"github.com/OpenCHAMI/configurator/pkg/util"
@@ -22,7 +23,7 @@ func (g *TestGenerator) GetVersion() string { return "v1.0.0" }
 func (g *TestGenerator) GetDescription() string {
 	return "This is a plugin created for running tests."
 }
-func (g *TestGenerator) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
+func (g *TestGenerator) Generate(config *config.Config, params generator.Params) (generator.FileMap, error) {
 	// Jinja 2 template file
 	files := [][]byte{
 		[]byte(`
@@ -42,26 +43,14 @@ This is another testing Jinja 2 template file using {{plugin_name}}.
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),
-	}, files...)
+	}, params.Templates)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply templates: %v", err)
-	}
-
-	// make sure we're able to receive certain arguments when passed
-	params := generator.GetParams(opts...)
-	if len(params) <= 0 {
-		return nil, fmt.Errorf("expect at least one params, but found none")
 	}
 
 	// make sure we have a valid config we can access
 	if config == nil {
 		return nil, fmt.Errorf("invalid config (config is nil)")
-	}
-
-	// make sure we're able to get a valid client as well
-	client := generator.GetClient(params)
-	if client == nil {
-		return nil, fmt.Errorf("invalid client (client is nil)")
 	}
 
 	// TODO: make sure we can get a target
@@ -100,7 +89,7 @@ type TestGenerator struct{}
 func (g *TestGenerator) GetName() string        { return "test" }
 func (g *TestGenerator) GetVersion() string     { return "v1.0.0" }
 func (g *TestGenerator) GetDescription() string { return "This is a plugin creating for running tests." }
-func (g *TestGenerator) Generate(config *configurator.Config, opts ...util.Option) (generator.FileMap, error) {
+func (g *TestGenerator) Generate(config *configurator.Config, opts ...generator.Option) (generator.FileMap, error) {
 	return generator.FileMap{"test": []byte("test")}, nil
 }
 var Generator TestGenerator
@@ -186,7 +175,7 @@ var Generator TestGenerator
 		GetName() string
 		GetVersion() string
 		GetDescription() string
-		Generate(*configurator.Config, ...util.Option) (generator.FileMap, error)
+		Generate(*config.Config, ...util.Option) (generator.FileMap, error)
 	}); !ok {
 		t.Error("plugin does not implement all of the generator interface")
 	}
@@ -203,7 +192,7 @@ var Generator TestGenerator
 			GetName() string
 			GetVersion() string
 			GetDescription() string
-			Generate(*configurator.Config, ...util.Option) (generator.FileMap, error)
+			Generate(*config.Config, ...util.Option) (generator.FileMap, error)
 		}); !ok {
 			t.Error("plugin does not implement all of the generator interface")
 		}
@@ -314,9 +303,8 @@ var Generator InvalidGenerator
 // we're not doing it here since that's not what is being tested.
 func TestGenerateExample(t *testing.T) {
 	var (
-		config = configurator.NewConfig()
-		client = configurator.NewSmdClient()
-		gen    = TestGenerator{}
+		conf = config.New()
+		gen  = TestGenerator{}
 	)
 
 	// make sure our generator returns expected strings
@@ -333,11 +321,7 @@ func TestGenerateExample(t *testing.T) {
 	})
 
 	// try to generate a file with templating applied
-	fileMap, err := gen.Generate(
-		&config,
-		generator.WithTarget("test"),
-		generator.WithClient(client),
-	)
+	fileMap, err := gen.Generate(&conf, generator.Params{})
 	if err != nil {
 		t.Fatalf("failed to generate file: %v", err)
 	}
@@ -356,8 +340,7 @@ func TestGenerateExample(t *testing.T) {
 // try and load the plugin from a lib here either.
 func TestGenerateExampleWithServer(t *testing.T) {
 	var (
-		config  = configurator.NewConfig()
-		client  = configurator.NewSmdClient()
+		conf    = config.New()
 		gen     = TestGenerator{}
 		headers = make(map[string]string, 0)
 	)
@@ -365,13 +348,13 @@ func TestGenerateExampleWithServer(t *testing.T) {
 	// NOTE: Currently, the server needs a config to know where to get load plugins,
 	// and how to handle targets/templates. This will be simplified in the future to
 	// decoupled the server from required a config altogether.
-	config.Targets["test"] = configurator.Target{
+	conf.Targets["test"] = configurator.Target{
 		TemplatePaths: []string{},
 		FilePaths:     []string{},
 	}
 
 	// create new server, add test generator, and start in background
-	server := server.New(&config)
+	server := server.New(&conf)
 	server.GeneratorParams.Generators = map[string]generator.Generator{
 		"test": &gen,
 	}
@@ -390,10 +373,7 @@ func TestGenerateExampleWithServer(t *testing.T) {
 	//
 	// NOTE: we don't actually use the config in this plugin implementation,
 	// but we do check that a valid config was passed.
-	fileMap, err := gen.Generate(
-		&config,
-		generator.WithClient(client),
-	)
+	fileMap, err := gen.Generate(&conf, generator.Params{})
 	if err != nil {
 		t.Fatalf("failed to generate file: %v", err)
 	}
