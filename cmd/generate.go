@@ -50,7 +50,7 @@ var generateCmd = &cobra.Command{
 		if verbose {
 			b, err := json.MarshalIndent(conf, "", "  ")
 			if err != nil {
-				log.Error().Err(err).Printf("failed to marshal config")
+				log.Error().Err(err).Msg("failed to marshal config")
 			}
 			// print the config file as JSON
 			fmt.Printf("%v\n", string(b))
