@@ -39,7 +39,7 @@ This is another testing Jinja 2 template file using {{plugin_name}}.
 	}
 
 	// apply Jinja templates to file
-	fileList, err := generator.ApplyTemplates(generator.Mappings{
+	fileMap, err := generator.ApplyTemplates(generator.Mappings{
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),
@@ -56,14 +56,8 @@ This is another testing Jinja 2 template file using {{plugin_name}}.
 	// TODO: make sure we can get a target
 
 	// make sure we have the same number of files in file list
-	if len(files) != len(fileList) {
+	if len(files) != len(fileMap) {
 		return nil, fmt.Errorf("file list output count is not the same as the input")
-	}
-
-	// convert file list to file map
-	fileMap := make(generator.FileMap, len(fileList))
-	for i, contents := range fileList {
-		fileMap[fmt.Sprintf("t-%d.txt", i)] = contents
 	}
 
 	return fileMap, nil
@@ -175,7 +169,7 @@ var Generator TestGenerator
 		GetName() string
 		GetVersion() string
 		GetDescription() string
-		Generate(*config.Config, ...util.Option) (generator.FileMap, error)
+		Generate(*config.Config, generator.Params) (generator.FileMap, error)
 	}); !ok {
 		t.Error("plugin does not implement all of the generator interface")
 	}
@@ -192,7 +186,7 @@ var Generator TestGenerator
 			GetName() string
 			GetVersion() string
 			GetDescription() string
-			Generate(*config.Config, ...util.Option) (generator.FileMap, error)
+			Generate(*config.Config, generator.Params) (generator.FileMap, error)
 		}); !ok {
 			t.Error("plugin does not implement all of the generator interface")
 		}
