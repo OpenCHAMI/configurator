@@ -355,9 +355,7 @@ func TestGenerateExampleWithServer(t *testing.T) {
 
 	// create new server, add test generator, and start in background
 	server := server.New(&conf)
-	server.GeneratorParams.Generators = map[string]generator.Generator{
-		"test": &gen,
-	}
+	generator.DefaultGenerators["test"] = &gen
 	go server.Serve()
 
 	// make request to server to generate a file
