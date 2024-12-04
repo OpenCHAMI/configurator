@@ -3,7 +3,7 @@ package generator
 import (
 	"fmt"
 
-	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
@@ -21,6 +21,6 @@ func (g *Powerman) GetDescription() string {
 	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
-func (g *Powerman) Generate(config *configurator.Config, opts ...util.Option) (FileMap, error) {
+func (g *Powerman) Generate(config *config.Config, opts ...Option) (FileMap, error) {
 	return nil, fmt.Errorf("plugin does not implement generation function")
 }

@@ -2,6 +2,13 @@ package configurator
 
 import "encoding/json"
 
+type Target struct {
+	Plugin        string   `yaml:"plugin,omitempty"`    // Set the plugin or it's path
+	TemplatePaths []string `yaml:"templates,omitempty"` // Set the template paths
+	FilePaths     []string `yaml:"files,omitempty"`     // Set the file paths
+	RunTargets    []string `yaml:"targets,omitempty"`   // Set additional targets to run
+}
+
 type IPAddr struct {
 	IpAddress string `json:"IPAddress"`
 	Network   string `json:"Network"`

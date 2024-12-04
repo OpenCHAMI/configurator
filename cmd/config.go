@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
@@ -23,7 +23,7 @@ var configCmd = &cobra.Command{
 				fmt.Printf("file or directory exists\n")
 				continue
 			}
-			configurator.SaveDefaultConfig(path)
+			config.SaveDefault(path)
 		}
 	},
 }
