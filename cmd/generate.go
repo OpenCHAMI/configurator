@@ -36,7 +36,7 @@ var generateCmd = &cobra.Command{
 			} else {
 				// TODO: try and fetch token first if it is needed
 				if verbose {
-					fmt.Printf("No token found. Attempting to generate conf without one...\n")
+					log.Warn().Msg("No token found. Attempting to generate conf without one...\n")
 				}
 			}
 		}
@@ -61,7 +61,7 @@ var generateCmd = &cobra.Command{
 			RunTargets(&conf, args, targets...)
 		} else {
 			if pluginPath == "" {
-				fmt.Printf("no plugin path specified")
+				log.Error().Msg("no plugin path specified")
 				return
 			}
 
