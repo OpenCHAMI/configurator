@@ -8,7 +8,7 @@ import (
 	"github.com/OpenCHAMI/configurator/pkg/client"
 	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/util"
-	"github.com/caarlos0/log"
+	"github.com/rs/zerolog/log"
 )
 
 type Warewulf struct{}
