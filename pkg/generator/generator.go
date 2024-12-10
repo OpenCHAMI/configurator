@@ -130,6 +130,11 @@ func LoadPlugins(dirpath string, opts ...Option) (map[string]Generator, error) {
 			return nil
 		}
 
+		// only try loading if file has .so extension
+		if filepath.Ext(path) != ".so" {
+			return nil
+		}
+
 		// load the generator plugin from current path
 		gen, err := LoadPlugin(path)
 		if err != nil {
