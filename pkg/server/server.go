@@ -58,9 +58,7 @@ func New(conf *config.Config) *Server {
 	// return based on config values
 	return &Server{
 		Config: conf,
-		Server: &http.Server{
-			Addr: fmt.Sprintf("%s:%d", conf.Server.Host, conf.Server.Port),
-		},
+		Server: &http.Server{Addr: fmt.Sprintf("%s", conf.Server.Host)},
 		Jwks: Jwks{
 			Uri:     conf.Server.Jwks.Uri,
 			Retries: conf.Server.Jwks.Retries,

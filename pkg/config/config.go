@@ -34,11 +34,8 @@ type Config struct {
 // Creates a new config with default parameters.
 func New() Config {
 	return Config{
-		Version: "",
-		SmdClient: client.SmdClient{
-			Host: "http://127.0.0.1",
-			Port: 27779,
-		},
+		Version:   "",
+		SmdClient: client.SmdClient{Host: "http://127.0.0.1:27779"},
 		Targets: map[string]configurator.Target{
 			"dnsmasq": configurator.Target{
 				Plugin:        "",
@@ -59,8 +56,7 @@ func New() Config {
 
 		PluginDirs: []string{},
 		Server: Server{
-			Host: "127.0.0.1",
-			Port: 3334,
+			Host: "127.0.0.1:3334",
 			Jwks: Jwks{
 				Uri:     "",
 				Retries: 5,
