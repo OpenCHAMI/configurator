@@ -23,6 +23,8 @@ var (
 	err        error
 )
 
+const ()
+
 // A valid test generator that implements the `Generator` interface.
 type TestGenerator struct{}
 
@@ -33,17 +35,21 @@ func (g *TestGenerator) GetDescription() string {
 }
 func (g *TestGenerator) Generate(config *config.Config, params generator.Params) (generator.FileMap, error) {
 	// Jinja 2 template file
-	files := [][]byte{
-		[]byte(`
+	files := map[string]generator.Template{
+		"test1": generator.Template{
+			Contents: []byte(`
 Name:        {{plugin_name}}
 Version:     {{plugin_version}}
 Description: {{plugin_description}}
 
 This is the first test template file.
-		`),
-		[]byte(`
+			`),
+		},
+		"test2": generator.Template{
+			Contents: []byte(`
 This is another testing Jinja 2 template file using {{plugin_name}}.
-		`),
+			`),
+		},
 	}
 
 	// apply Jinja templates to file
@@ -51,7 +57,7 @@ This is another testing Jinja 2 template file using {{plugin_name}}.
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),
-	}, params.Templates)
+	}, files)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply templates: %v", err)
 	}
