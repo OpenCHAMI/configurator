@@ -3,9 +3,11 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
@@ -13,6 +15,12 @@ import (
 	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/server"
 	"github.com/OpenCHAMI/configurator/pkg/util"
+)
+
+var (
+	workDir    string
+	replaceDir string
+	err        error
 )
 
 // A valid test generator that implements the `Generator` interface.
@@ -56,11 +64,23 @@ This is another testing Jinja 2 template file using {{plugin_name}}.
 	// TODO: make sure we can get a target
 
 	// make sure we have the same number of files in file list
-	if len(files) != len(fileMap) {
-		return nil, fmt.Errorf("file list output count is not the same as the input")
+	var (
+		fileInputCount  = len(files)
+		fileOutputCount = len(fileMap)
+	)
+	if fileInputCount != fileOutputCount {
+		return nil, fmt.Errorf("file output count (%d) is not the same as the input (%d)", fileOutputCount, fileInputCount)
 	}
 
 	return fileMap, nil
+}
+
+func init() {
+	workDir, err = os.Getwd()
+	if err != nil {
+		log.Fatalf("failed to get working directory: %v", err)
+	}
+	replaceDir = fmt.Sprintf("%s", filepath.Dir(workDir))
 }
 
 // Test building and loading plugins
@@ -69,34 +89,34 @@ func TestPlugin(t *testing.T) {
 		testPluginDir        = t.TempDir()
 		testPluginPath       = fmt.Sprintf("%s/test-plugin.so", testPluginDir)
 		testPluginSourcePath = fmt.Sprintf("%s/test-plugin.go", testPluginDir)
-		testPluginSource     = []byte(`
-package main
+		testPluginSource     = []byte(
+			`package main
 
 import (
-	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/generator"
-	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
 type TestGenerator struct{}
 
-func (g *TestGenerator) GetName() string        { return "test" }
-func (g *TestGenerator) GetVersion() string     { return "v1.0.0" }
-func (g *TestGenerator) GetDescription() string { return "This is a plugin creating for running tests." }
-func (g *TestGenerator) Generate(config *configurator.Config, opts ...generator.Option) (generator.FileMap, error) {
+func (g *TestGenerator) GetName() string    { return "test" }
+func (g *TestGenerator) GetVersion() string { return "v1.0.0" }
+func (g *TestGenerator) GetDescription() string {
+	return "This is a plugin creating for running tests."
+}
+func (g *TestGenerator) Generate(config *config.Config, params generator.Params) (generator.FileMap, error) {
 	return generator.FileMap{"test": []byte("test")}, nil
 }
-var Generator TestGenerator
-		`)
+
+var Generator TestGenerator`)
 	)
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Errorf("failed to get working directory: %v", err)
-	}
+	// get directory to replace remote pkg with local
+	// _, filename, _, _ := runtime.Caller(0)
+	// replaceDir := fmt.Sprintf("%s", filepath.Dir(workDir))
 
 	// show all paths to make sure we're using the correct ones
-	fmt.Printf("(TestPlugin) working directory:     %v\n", wd)
+	fmt.Printf("(TestPlugin) working directory:     %v\n", workDir)
 	fmt.Printf("(TestPlugin) plugin directory:      %v\n", testPluginDir)
 	fmt.Printf("(TestPlugin) plugin path:           %v\n", testPluginPath)
 	fmt.Printf("(TestPlugin) plugin source path:    %v\n", testPluginSourcePath)
@@ -130,6 +150,12 @@ var Generator TestGenerator
 
 	// initialize the plugin directory as a Go project
 	cmd := exec.Command("bash", "-c", "go mod init github.com/OpenCHAMI/configurator-test-plugin")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
+	}
+
+	// use the local `pkg` instead of the release one
+	cmd = exec.Command("bash", "-c", fmt.Sprintf("go mod edit -replace=github.com/OpenCHAMI/configurator=%s", replaceDir))
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
 	}
@@ -216,15 +242,14 @@ var Generator InvalidGenerator
 		`)
 	)
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Errorf("failed to get working directory: %v", err)
-	}
 	// show all paths to make sure we're using the correct ones
-	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) working directory:     %v\n", wd)
+	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) working directory:     %v\n", workDir)
 	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) plugin directory:      %v\n", testPluginDir)
 	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) plugin path:           %v\n", testPluginPath)
 	fmt.Printf("(TestPluginWithInvalidOrNoSymbol) plugin source path:    %v\n", testPluginSourcePath)
+
+	// get directory to replace remote pkg with local
+	// _, filename, _, _ := runtime.Caller(0)
 
 	// make temporary directory to test plugin
 	err = os.MkdirAll(testPluginDir, os.ModeDir)
@@ -255,6 +280,12 @@ var Generator InvalidGenerator
 
 	// initialize the plugin directory as a Go project
 	cmd := exec.Command("bash", "-c", "go mod init github.com/OpenCHAMI/configurator-test-plugin")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
+	}
+
+	// use the local `pkg` instead of the release one
+	cmd = exec.Command("bash", "-c", fmt.Sprintf("go mod edit -replace=github.com/OpenCHAMI/configurator=%s", replaceDir))
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("failed to execute command: %v\n%s", err, string(output))
 	}
