@@ -33,7 +33,7 @@ var fetchCmd = &cobra.Command{
 			} else {
 				// TODO: try and fetch token first if it is needed
 				if verbose {
-					fmt.Printf("No token found. Attempting to generate config without one...\n")
+					log.Warn().Msg("No token found. Attempting to generate config without one...")
 				}
 			}
 		}
