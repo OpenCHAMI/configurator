@@ -143,7 +143,7 @@ func LoadPlugins(dirpath string, opts ...Option) (map[string]Generator, error) {
 
 		// show the plugins found if verbose flag is set
 		if params.Verbose {
-			fmt.Printf("-- found plugin '%s'\n", gen.GetName())
+			log.Info().Str("plugin_name", gen.GetName()).Msg("found plugin")
 		}
 
 		// map each generator plugin by name for lookup

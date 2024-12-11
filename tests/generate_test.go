@@ -23,8 +23,6 @@ var (
 	err        error
 )
 
-const ()
-
 // A valid test generator that implements the `Generator` interface.
 type TestGenerator struct{}
 

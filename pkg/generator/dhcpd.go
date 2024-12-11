@@ -54,10 +54,6 @@ func (g *DHCPd) Generate(config *config.Config, params Params) (FileMap, error) 
 		computeNodes += fmt.Sprintf("host %s { hardware ethernet %s; fixed-address %s} ", eth.ComponentId, eth.MacAddress, eth.IpAddresses[0])
 	}
 	computeNodes += "# ====================================================================="
-
-	if params.Verbose {
-		fmt.Printf("")
-	}
 	return ApplyTemplates(Mappings{
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),

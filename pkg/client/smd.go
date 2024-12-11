@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/caarlos0/log"
 )
 
 // An struct that's meant to extend functionality of the base HTTP client by
@@ -57,7 +58,7 @@ func (client *SmdClient) FetchEthernetInterfaces(verbose bool) ([]configurator.E
 
 	// print what we got if verbose is set
 	if verbose {
-		fmt.Printf("Ethernet Interfaces: %v\n", string(bytes))
+		log.Info().Str("ethernet_interfaces", string(bytes)).Msg("found interfaces")
 	}
 
 	return eths, nil
@@ -99,7 +100,7 @@ func (client *SmdClient) FetchComponents(verbose bool) ([]configurator.Component
 
 	// print what we got if verbose is set
 	if verbose {
-		fmt.Printf("Components: %v\n", string(bytes))
+		log.Info().Str("components", string(bytes)).Msg("found components")
 	}
 
 	return comps, nil
@@ -138,7 +139,7 @@ func (client *SmdClient) FetchRedfishEndpoints(verbose bool) ([]configurator.Red
 
 	// show the final result
 	if verbose {
-		fmt.Printf("Redfish endpoints: %v\n", string(b))
+		log.Info().Str("redfish_endpoints", string(b)).Msg("found redfish endpoints")
 	}
 
 	return eps, nil
