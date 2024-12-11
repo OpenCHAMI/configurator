@@ -151,7 +151,7 @@ func (client *SmdClient) makeRequest(endpoint string) ([]byte, error) {
 	}
 
 	// fetch DHCP related information from SMD's endpoint:
-	url := fmt.Sprintf("%s:%d/hsm/v2%s", client.Host, client.Port, endpoint)
+	url := fmt.Sprintf("%s/hsm/v2%s", client.Host, endpoint)
 	req, err := http.NewRequest(http.MethodGet, url, bytes.NewBuffer([]byte{}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new HTTP request: %v", err)

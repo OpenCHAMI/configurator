@@ -74,7 +74,7 @@ func (config *Config) Save(path string) {
 		log.Error().Err(err).Msg("failed to marshal config")
 		return
 	}
-	err = os.WriteFile(path, data, os.ModePerm)
+	err = os.WriteFile(path, data, 0o644)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to write default config file")
 		return
@@ -92,7 +92,7 @@ func SaveDefault(path string) {
 		log.Error().Err(err).Msg("failed to marshal config")
 		return
 	}
-	err = os.WriteFile(path, data, os.ModePerm)
+	err = os.WriteFile(path, data, 0o644)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to write default config file")
 		return
