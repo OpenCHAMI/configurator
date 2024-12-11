@@ -1,11 +1,10 @@
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
@@ -20,10 +19,10 @@ var configCmd = &cobra.Command{
 		for _, path := range args {
 			// check and make sure something doesn't exist first
 			if exists, err := util.PathExists(path); exists || err != nil {
-				fmt.Printf("file or directory exists\n")
+				log.Error().Err(err).Msg("file or directory exists")
 				continue
 			}
-			configurator.SaveDefaultConfig(path)
+			config.SaveDefault(path)
 		}
 	},
 }

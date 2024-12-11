@@ -1,128 +1,64 @@
-package configurator
+package client
 
 import (
 	"bytes"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
-	"os"
-	"time"
 
-	"github.com/OpenCHAMI/configurator/pkg/util"
+	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/rs/zerolog/log"
 )
-
-type ClientOption func(*SmdClient)
 
 // An struct that's meant to extend functionality of the base HTTP client by
 // adding commonly made requests to SMD. The implemented functions are can be
 // used in generator plugins to fetch data when it is needed to substitute
 // values for the Jinja templates used.
 type SmdClient struct {
-	http.Client `json:"-"`
+	http.Client `json:"-" yaml:"-"`
 	Host        string `yaml:"host"`
 	Port        int    `yaml:"port"`
 	AccessToken string `yaml:"access-token"`
 }
 
-// Constructor function that allows supplying ClientOption arguments to set
+// Constructor function that allows supplying Option arguments to set
 // things like the host, port, access token, etc.
-func NewSmdClient(opts ...ClientOption) SmdClient {
-	client := SmdClient{}
-	for _, opt := range opts {
-		opt(&client)
-	}
-	return client
-}
-
-func WithHost(host string) ClientOption {
-	return func(c *SmdClient) {
-		c.Host = host
-	}
-}
-
-func WithPort(port int) ClientOption {
-	return func(c *SmdClient) {
-		c.Port = port
-	}
-}
-
-func WithAccessToken(token string) ClientOption {
-	return func(c *SmdClient) {
-		c.AccessToken = token
-	}
-}
-
-func WithCertPool(certPool *x509.CertPool) ClientOption {
-	return func(c *SmdClient) {
-		c.Client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs:            certPool,
-				InsecureSkipVerify: true,
-			},
-			DisableKeepAlives: true,
-			Dial: (&net.Dialer{
-				Timeout:   120 * time.Second,
-				KeepAlive: 120 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   120 * time.Second,
-			ResponseHeaderTimeout: 120 * time.Second,
+func NewSmdClient(opts ...Option) SmdClient {
+	var (
+		params = ToParams(opts...)
+		client = SmdClient{
+			Host:        params.Host,
+			AccessToken: params.AccessToken,
 		}
-	}
-}
+	)
 
-// FIXME: Need to check for errors when reading from a file
-func WithCertPoolFile(certPath string) ClientOption {
-	if certPath == "" {
-		return func(sc *SmdClient) {}
-	}
-	cacert, _ := os.ReadFile(certPath)
-	certPool := x509.NewCertPool()
-	certPool.AppendCertsFromPEM(cacert)
-	return WithCertPool(certPool)
-}
-
-func WithVerbosity() util.Option {
-	return func(p util.Params) {
-		p["verbose"] = true
-	}
-}
-
-// Create a set of params with all default values.
-func NewParams() util.Params {
-	return util.Params{
-		"verbose": false,
-	}
+	return client
 }
 
 // Fetch the ethernet interfaces from SMD service using its API. An access token may be required if the SMD
 // service SMD_JWKS_URL envirnoment variable is set.
-func (client *SmdClient) FetchEthernetInterfaces(opts ...util.Option) ([]EthernetInterface, error) {
+func (client *SmdClient) FetchEthernetInterfaces(verbose bool) ([]configurator.EthernetInterface, error) {
 	var (
-		params  = util.ToDict(opts...)
-		verbose = util.Get[bool](params, "verbose")
-		eths    = []EthernetInterface{}
+		eths  = []configurator.EthernetInterface{}
+		bytes []byte
+		err   error
 	)
 	// make request to SMD endpoint
-	b, err := client.makeRequest("/Inventory/EthernetInterfaces")
+	bytes, err = client.makeRequest("/Inventory/EthernetInterfaces")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read HTTP response: %v", err)
 	}
 
 	// unmarshal response body JSON and extract in object
-	err = json.Unmarshal(b, &eths)
+	err = json.Unmarshal(bytes, &eths)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
 
 	// print what we got if verbose is set
-	if verbose != nil {
-		if *verbose {
-			fmt.Printf("Ethernet Interfaces: %v\n", string(b))
-		}
+	if verbose {
+		log.Info().Str("ethernet_interfaces", string(bytes)).Msg("found interfaces")
 	}
 
 	return eths, nil
@@ -130,68 +66,68 @@ func (client *SmdClient) FetchEthernetInterfaces(opts ...util.Option) ([]Etherne
 
 // Fetch the components from SMD using its API. An access token may be required if the SMD
 // service SMD_JWKS_URL envirnoment variable is set.
-func (client *SmdClient) FetchComponents(opts ...util.Option) ([]Component, error) {
+func (client *SmdClient) FetchComponents(verbose bool) ([]configurator.Component, error) {
 	var (
-		params  = util.ToDict(opts...)
-		verbose = util.Get[bool](params, "verbose")
-		comps   = []Component{}
+		comps = []configurator.Component{}
+		bytes []byte
+		err   error
 	)
 	// make request to SMD endpoint
-	b, err := client.makeRequest("/State/Components")
+	bytes, err = client.makeRequest("/State/Components")
 	if err != nil {
 		return nil, fmt.Errorf("failed to make HTTP request: %v", err)
 	}
 
 	// make sure our response is actually JSON
-	if !json.Valid(b) {
-		return nil, fmt.Errorf("expected valid JSON response: %v", string(b))
+	if !json.Valid(bytes) {
+		return nil, fmt.Errorf("expected valid JSON response: %v", string(bytes))
 	}
 
 	// unmarshal response body JSON and extract in object
 	var tmp map[string]any
-	err = json.Unmarshal(b, &tmp)
+	err = json.Unmarshal(bytes, &tmp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
-	b, err = json.Marshal(tmp["RedfishEndpoints"].([]any))
+	bytes, err = json.Marshal(tmp["RedfishEndpoints"].([]any))
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal JSON: %v", err)
 	}
-	err = json.Unmarshal(b, &comps)
+	err = json.Unmarshal(bytes, &comps)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
 
 	// print what we got if verbose is set
-	if verbose != nil {
-		if *verbose {
-			fmt.Printf("Components: %v\n", string(b))
-		}
+	if verbose {
+		log.Info().Str("components", string(bytes)).Msg("found components")
 	}
 
 	return comps, nil
 }
 
-func (client *SmdClient) FetchRedfishEndpoints(opts ...util.Option) ([]RedfishEndpoint, error) {
+// TODO: improve implementation of this function
+func (client *SmdClient) FetchRedfishEndpoints(verbose bool) ([]configurator.RedfishEndpoint, error) {
 	var (
-		params  = util.ToDict(opts...)
-		verbose = util.Get[bool](params, "verbose")
-		eps     = []RedfishEndpoint{}
+		eps = []configurator.RedfishEndpoint{}
+		tmp map[string]any
 	)
 
+	// make initial request to get JSON with 'RedfishEndpoints' as property
 	b, err := client.makeRequest("/Inventory/RedfishEndpoints")
 	if err != nil {
 		return nil, fmt.Errorf("failed to make HTTP resquest: %v", err)
 	}
+	// make sure response is in JSON
 	if !json.Valid(b) {
 		return nil, fmt.Errorf("expected valid JSON response: %v", string(b))
 	}
-	var tmp map[string]any
 	err = json.Unmarshal(b, &tmp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
 
+	// marshal RedfishEndpoint JSON back to configurator.RedfishEndpoint
 	b, err = json.Marshal(tmp["RedfishEndpoints"].([]any))
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal JSON: %v", err)
@@ -201,10 +137,9 @@ func (client *SmdClient) FetchRedfishEndpoints(opts ...util.Option) ([]RedfishEn
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
 
-	if verbose != nil {
-		if *verbose {
-			fmt.Printf("Redfish endpoints: %v\n", string(b))
-		}
+	// show the final result
+	if verbose {
+		log.Info().Str("redfish_endpoints", string(b)).Msg("found redfish endpoints")
 	}
 
 	return eps, nil
@@ -216,7 +151,7 @@ func (client *SmdClient) makeRequest(endpoint string) ([]byte, error) {
 	}
 
 	// fetch DHCP related information from SMD's endpoint:
-	url := fmt.Sprintf("%s:%d/hsm/v2%s", client.Host, client.Port, endpoint)
+	url := fmt.Sprintf("%s/hsm/v2%s", client.Host, endpoint)
 	req, err := http.NewRequest(http.MethodGet, url, bytes.NewBuffer([]byte{}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new HTTP request: %v", err)
