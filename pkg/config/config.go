@@ -1,9 +1,10 @@
 package config
 
 import (
-	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/rs/zerolog/log"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
 	"github.com/OpenCHAMI/configurator/pkg/client"
@@ -34,26 +35,9 @@ type Config struct {
 // Creates a new config with default parameters.
 func New() Config {
 	return Config{
-		Version:   "",
-		SmdClient: client.SmdClient{Host: "http://127.0.0.1:27779"},
-		Targets: map[string]configurator.Target{
-			"dnsmasq": configurator.Target{
-				Plugin:        "",
-				TemplatePaths: []string{},
-			},
-			"conman": configurator.Target{
-				Plugin:        "",
-				TemplatePaths: []string{},
-			},
-			"warewulf": configurator.Target{
-				Plugin: "",
-				TemplatePaths: []string{
-					"templates/warewulf/defaults/node.jinja",
-					"templates/warewulf/defaults/provision.jinja",
-				},
-			},
-		},
-
+		Version:    "",
+		SmdClient:  client.SmdClient{Host: "http://127.0.0.1:27779"},
+		Targets:    map[string]configurator.Target{},
 		PluginDirs: []string{},
 		Server: Server{
 			Host: "127.0.0.1:3334",
@@ -69,12 +53,12 @@ func Load(path string) Config {
 	var c Config = New()
 	file, err := os.ReadFile(path)
 	if err != nil {
-		log.Printf("failed to read config file: %v\n", err)
+		log.Error().Err(err).Msg("failed to read config file")
 		return c
 	}
 	err = yaml.Unmarshal(file, &c)
 	if err != nil {
-		log.Fatalf("failed to unmarshal config: %v\n", err)
+		log.Error().Err(err).Msg("failed to unmarshal config")
 		return c
 	}
 	return c
@@ -87,12 +71,12 @@ func (config *Config) Save(path string) {
 	}
 	data, err := yaml.Marshal(config)
 	if err != nil {
-		log.Printf("failed to marshal config: %v\n", err)
+		log.Error().Err(err).Msg("failed to marshal config")
 		return
 	}
 	err = os.WriteFile(path, data, os.ModePerm)
 	if err != nil {
-		log.Printf("failed to write default config file: %v\n", err)
+		log.Error().Err(err).Msg("failed to write default config file")
 		return
 	}
 }
@@ -105,12 +89,12 @@ func SaveDefault(path string) {
 	var c = New()
 	data, err := yaml.Marshal(c)
 	if err != nil {
-		log.Printf("failed to marshal config: %v\n", err)
+		log.Error().Err(err).Msg("failed to marshal config")
 		return
 	}
 	err = os.WriteFile(path, data, os.ModePerm)
 	if err != nil {
-		log.Printf("failed to write default config file: %v\n", err)
+		log.Error().Err(err).Msg("failed to write default config file")
 		return
 	}
 }
