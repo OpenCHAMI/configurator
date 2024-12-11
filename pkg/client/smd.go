@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
-	"github.com/caarlos0/log"
+	"github.com/rs/zerolog/log"
 )
 
 // An struct that's meant to extend functionality of the base HTTP client by
