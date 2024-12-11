@@ -16,7 +16,7 @@ import (
 // used in generator plugins to fetch data when it is needed to substitute
 // values for the Jinja templates used.
 type SmdClient struct {
-	http.Client `json:"-"`
+	http.Client `json:"-" yaml:"-"`
 	Host        string `yaml:"host"`
 	Port        int    `yaml:"port"`
 	AccessToken string `yaml:"access-token"`
