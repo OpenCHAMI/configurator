@@ -42,14 +42,7 @@ var serveCmd = &cobra.Command{
 		}
 
 		// set up the routes and start the serve
-		server := server.Server{
-			Config: &conf,
-			Server: &http.Server{Addr: conf.Server.Host},
-			Jwks: server.Jwks{
-				Uri:     conf.Server.Jwks.Uri,
-				Retries: conf.Server.Jwks.Retries,
-			},
-		}
+		server := server.New(&conf)
 
 		// start listening with the server
 		err := server.Serve()

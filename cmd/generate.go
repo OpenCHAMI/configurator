@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/OpenCHAMI/configurator/pkg/client"
 	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/util"
@@ -79,6 +80,15 @@ var generateCmd = &cobra.Command{
 				Templates: templates,
 			}
 
+			// set the client options
+			opts := []client.Option{}
+			if conf.AccessToken != "" {
+				params.ClientOpts = append(opts, client.WithAccessToken(conf.AccessToken))
+			}
+			if conf.CertPath != "" {
+				params.ClientOpts = append(opts, client.WithCertPoolFile(conf.CertPath))
+			}
+
 			// run generator.Generate() with just plugin path and templates provided
 			outputBytes, err := generator.Generate(pluginPath, params)
 			if err != nil {
@@ -103,7 +113,7 @@ func RunTargets(conf *config.Config, args []string, targets ...string) {
 	for _, target := range targets {
 		outputBytes, err := generator.GenerateWithTarget(conf, target)
 		if err != nil {
-			log.Error().Err(err).Msg("failed to generate config")
+			log.Error().Err(err).Str("target", target).Msg("failed to generate config")
 			os.Exit(1)
 		}
 
@@ -139,7 +149,7 @@ func writeOutput(outputBytes generator.FileMap, targetCount int, templateCount i
 		for _, contents := range outputBytes {
 			err := os.WriteFile(outputPath, contents, 0o644)
 			if err != nil {
-				log.Error().Err(err).Msg("failed to write conf to file")
+				log.Error().Err(err).Str("path", outputPath).Msg("failed to write config file")
 				os.Exit(1)
 			}
 			log.Info().Msgf("wrote file to '%s'\n", outputPath)
@@ -148,7 +158,7 @@ func writeOutput(outputBytes generator.FileMap, targetCount int, templateCount i
 		// write multiple files to archive, compress, then save to output path
 		out, err := os.Create(fmt.Sprintf("%s.tar.gz", outputPath))
 		if err != nil {
-			log.Error().Err(err).Msg("failed to write archive")
+			log.Error().Err(err).Str("path", outputPath).Msg("failed to write archive")
 			os.Exit(1)
 		}
 		files := make([]string, len(outputBytes))
@@ -159,7 +169,7 @@ func writeOutput(outputBytes generator.FileMap, targetCount int, templateCount i
 		}
 		err = util.CreateArchive(files, out)
 		if err != nil {
-			log.Error().Err(err).Msg("failed to create archive")
+			log.Error().Err(err).Str("path", outputPath).Msg("failed to create archive")
 			os.Exit(1)
 		}
 
@@ -167,7 +177,7 @@ func writeOutput(outputBytes generator.FileMap, targetCount int, templateCount i
 		// write multiple files in directory using template name
 		err := os.MkdirAll(filepath.Clean(outputPath), 0o755)
 		if err != nil {
-			log.Error().Err(err).Msg("failed to make output directory")
+			log.Error().Err(err).Str("path", filepath.Clean(outputPath)).Msg("failed to make output directory")
 			os.Exit(1)
 		}
 		for path, contents := range outputBytes {
@@ -175,7 +185,7 @@ func writeOutput(outputBytes generator.FileMap, targetCount int, templateCount i
 			cleanPath := fmt.Sprintf("%s/%s", filepath.Clean(outputPath), filename)
 			err := os.WriteFile(cleanPath, contents, 0o755)
 			if err != nil {
-				log.Error().Err(err).Msg("failed to write conf to file")
+				log.Error().Err(err).Str("path", path).Msg("failed to write config to file")
 				os.Exit(1)
 			}
 			log.Info().Msgf("wrote file to '%s'\n", cleanPath)
