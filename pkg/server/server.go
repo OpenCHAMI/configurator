@@ -58,7 +58,7 @@ func New(conf *config.Config) *Server {
 	// return based on config values
 	return &Server{
 		Config: conf,
-		Server: &http.Server{Addr: fmt.Sprintf("%s", conf.Server.Host)},
+		Server: &http.Server{Addr: conf.Server.Host},
 		Jwks: Jwks{
 			Uri:     conf.Server.Jwks.Uri,
 			Retries: conf.Server.Jwks.Retries,
@@ -138,29 +138,26 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 	return func(w http.ResponseWriter, r *http.Request) {
 		// get all of the expect query URL params and validate
 		var (
-			target string = r.URL.Query().Get("target")
+			targetParam string  = r.URL.Query().Get("target")
+			target      *Target = s.getTarget(targetParam)
+			outputs     generator.FileMap
+			err         error
 		)
 		s.GeneratorParams = parseGeneratorParams(r, opts...)
-		if target == "" {
+		if targetParam == "" {
 			writeErrorResponse(w, "must specify a target")
 			return
 		}
 
 		// try to generate with target supplied by client first
-		var (
-			t       *Target = s.getTarget(target)
-			outputs generator.FileMap
-			err     error
-		)
-
-		if t != nil {
-			outputs, err = generator.Generate(t.PluginPath, s.GeneratorParams)
+		if target != nil {
+			outputs, err = generator.Generate(target.PluginPath, s.GeneratorParams)
 			if err != nil {
 
 			}
 		} else {
 			// try and generate a new config file from supplied params
-			outputs, err = generator.GenerateWithTarget(s.Config, target)
+			outputs, err = generator.GenerateWithTarget(s.Config, targetParam)
 			if err != nil {
 				writeErrorResponse(w, "failed to generate file: %v", err)
 				return

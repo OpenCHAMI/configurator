@@ -212,7 +212,7 @@ func GenerateWithTarget(config *config.Config, target string) (FileMap, error) {
 	// load target information from config
 	targetInfo, ok = config.Targets[target]
 	if !ok {
-		log.Warn().Msg("target not found in config")
+		log.Warn().Str("target", target).Msg("target not found in config")
 	}
 
 	// if no plugin supplied in config target, then using the target supplied
@@ -224,7 +224,7 @@ func GenerateWithTarget(config *config.Config, target string) (FileMap, error) {
 	generator, ok = DefaultGenerators[target]
 	if !ok {
 		// only load the plugin needed for this target if we don't find default
-		log.Error().Msg("could not find target in default generators")
+		log.Warn().Str("target", target).Msg("could not find target in default generators")
 		generator, err = LoadPlugin(targetInfo.Plugin)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load plugin: %v", err)
