@@ -81,12 +81,11 @@ var generateCmd = &cobra.Command{
 			}
 
 			// set the client options
-			opts := []client.Option{}
 			if conf.AccessToken != "" {
-				params.ClientOpts = append(opts, client.WithAccessToken(conf.AccessToken))
+				params.ClientOpts = append(params.ClientOpts, client.WithAccessToken(conf.AccessToken))
 			}
 			if conf.CertPath != "" {
-				params.ClientOpts = append(opts, client.WithCertPoolFile(conf.CertPath))
+				params.ClientOpts = append(params.ClientOpts, client.WithCertPoolFile(conf.CertPath))
 			}
 
 			// run generator.Generate() with just plugin path and templates provided
