@@ -41,11 +41,11 @@ var serveCmd = &cobra.Command{
 			fmt.Printf("%v\n", string(b))
 		}
 
-		// set up the routes and start the serve
-		server := server.New(&conf)
-
 		// start listening with the server
-		err := server.Serve()
+		var (
+			s   *server.Server = server.New(&conf)
+			err error          = s.Serve()
+		)
 		if errors.Is(err, http.ErrServerClosed) {
 			if verbose {
 				log.Info().Msg("server closed")
