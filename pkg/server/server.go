@@ -145,7 +145,7 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 		)
 		s.GeneratorParams = parseGeneratorParams(r, opts...)
 		if targetParam == "" {
-			writeErrorResponse(w, "must specify a target")
+			writeErrorResponse(w, true, "must specify a target")
 			return
 		}
 
@@ -159,7 +159,8 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 			// try and generate a new config file from supplied params
 			outputs, err = generator.GenerateWithTarget(s.Config, targetParam)
 			if err != nil {
-				writeErrorResponse(w, "failed to generate file: %v", err)
+				writeErrorResponse(w, false, "failed to generate file")
+				log.Error().Err(err).Msg("failed to generate file")
 				return
 			}
 		}
@@ -168,12 +169,12 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 		tmp := generator.ConvertContentsToString(outputs)
 		b, err := json.Marshal(tmp)
 		if err != nil {
-			writeErrorResponse(w, "failed to marshal output: %v", err)
+			writeErrorResponse(w, true, "failed to marshal output: %v", err)
 			return
 		}
 		_, err = w.Write(b)
 		if err != nil {
-			writeErrorResponse(w, "failed to write response: %v", err)
+			writeErrorResponse(w, true, "failed to write response: %v", err)
 			return
 		}
 	}
@@ -193,34 +194,34 @@ func (s *Server) createTarget(w http.ResponseWriter, r *http.Request) {
 		err    error
 	)
 	if r == nil {
-		writeErrorResponse(w, "request is invalid")
+		writeErrorResponse(w, true, "request is invalid")
 		return
 	}
 
 	bytes, err = io.ReadAll(r.Body)
 	if err != nil {
-		writeErrorResponse(w, "failed to read response body: %v", err)
+		writeErrorResponse(w, true, "failed to read response body: %v", err)
 		return
 	}
 	defer r.Body.Close()
 
 	err = json.Unmarshal(bytes, &target)
 	if err != nil {
-		writeErrorResponse(w, "failed to unmarshal target: %v", err)
+		writeErrorResponse(w, true, "failed to unmarshal target: %v", err)
 		return
 	}
 
 	// make sure a plugin and at least one template is supplied
 	if target.Name == "" {
-		writeErrorResponse(w, "target name is required")
+		writeErrorResponse(w, true, "target name is required")
 		return
 	}
 	if target.PluginPath == "" {
-		writeErrorResponse(w, "must supply a generator name")
+		writeErrorResponse(w, true, "must supply a generator name")
 		return
 	}
 	if len(target.Templates) <= 0 {
-		writeErrorResponse(w, "must provided at least one template")
+		writeErrorResponse(w, true, "must provided at least one template")
 		return
 	}
 
@@ -238,10 +239,18 @@ func (s *Server) getTarget(target string) *Target {
 
 // Wrapper function to simplify writting error message responses. This function
 // is only intended to be used with the service and nothing else.
-func writeErrorResponse(w http.ResponseWriter, format string, a ...any) error {
+func writeErrorResponse(w http.ResponseWriter, logServer bool, format string, a ...any) error {
 	errmsg := fmt.Sprintf(format, a...)
-	log.Error().Msg(errmsg)
-	http.Error(w, errmsg, http.StatusInternalServerError)
+	if logServer {
+
+		log.Error().Msg(errmsg)
+	}
+	bytes, _ := json.Marshal(map[string]any{
+		"level":   "error",
+		"time":    time.Now().Unix(),
+		"message": errmsg,
+	})
+	http.Error(w, string(bytes), http.StatusInternalServerError)
 	return fmt.Errorf(errmsg)
 }
 
