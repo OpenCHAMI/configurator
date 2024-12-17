@@ -37,6 +37,7 @@ var serveCmd = &cobra.Command{
 			b, err := json.MarshalIndent(conf, "", "\t")
 			if err != nil {
 				log.Error().Err(err).Msg("failed to marshal config")
+				os.Exit(1)
 			}
 			fmt.Printf("%v\n", string(b))
 		}

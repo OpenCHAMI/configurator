@@ -27,6 +27,7 @@ var fetchCmd = &cobra.Command{
 		// check if we actually have any targets to run
 		if len(targets) <= 0 {
 			log.Error().Msg("must specify a target")
+			os.Exit(1)
 		}
 
 		// check to see if an access token is available from env
