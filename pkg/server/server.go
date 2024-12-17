@@ -55,8 +55,7 @@ func New(conf *config.Config) *Server {
 		c := config.New()
 		conf = &c
 	}
-	// return based on config values
-	return &Server{
+	newServer := &Server{
 		Config: conf,
 		Server: &http.Server{Addr: conf.Server.Host},
 		Jwks: Jwks{
@@ -64,6 +63,9 @@ func New(conf *config.Config) *Server {
 			Retries: conf.Server.Jwks.Retries,
 		},
 	}
+	// load templates for server from config
+	newServer.loadTargets()
+	return newServer
 }
 
 // Main function to start up configurator as a service.
@@ -180,6 +182,21 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 			log.Error().Err(err).Msg("failed to write response")
 			return
 		}
+	}
+}
+
+func (s *Server) loadTargets() {
+	for name, target := range s.Config.Targets {
+		serverTarget := Target{
+			Name:       name,
+			PluginPath: target.Plugin,
+		}
+		for _, templatePath := range target.TemplatePaths {
+			template := generator.Template{}
+			template.LoadFromFile(templatePath)
+			serverTarget.Templates = append(serverTarget.Templates, template)
+		}
+		s.Targets[name] = serverTarget
 	}
 }
 
