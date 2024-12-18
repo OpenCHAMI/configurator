@@ -165,23 +165,23 @@ func LoadPlugins(dirpath string, opts ...Option) (map[string]Generator, error) {
 // This function requires that a target and plugin path be set at minimum.
 func Generate(plugin string, params Params) (FileMap, error) {
 	var (
-		generator Generator
-		ok        bool
-		err       error
+		gen Generator
+		ok  bool
+		err error
 	)
 
 	// check if generator is built-in first before loading external plugin
-	generator, ok = DefaultGenerators[plugin]
+	gen, ok = DefaultGenerators[plugin]
 	if !ok {
 		// only load the plugin needed for this target if we don't find default
 		log.Error().Msg("could not find target in default generators")
-		generator, err = LoadPlugin(plugin)
+		gen, err = LoadPlugin(plugin)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load plugin from file: %v", err)
 		}
 	}
 
-	return generator.Generate(nil, params)
+	return gen.Generate(nil, params)
 }
 
 // Main function to generate a collection of files as a map with the path as the key and
