@@ -190,6 +190,14 @@ func (s *Server) loadTargets() {
 	if s.Targets == nil {
 		s.Targets = make(map[string]Target)
 	}
+	// add default generator targets
+	for name, _ := range generator.DefaultGenerators {
+		serverTarget := Target{
+			Name:       name,
+			PluginPath: name,
+		}
+		s.Targets[name] = serverTarget
+	}
 	// add targets from config to server
 	for name, target := range s.Config.Targets {
 		serverTarget := Target{
