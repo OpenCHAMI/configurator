@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/server"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -20,66 +20,48 @@ var serveCmd = &cobra.Command{
 	Short: "Start configurator as a server and listen for requests",
 	Run: func(cmd *cobra.Command, args []string) {
 		// make sure that we have a token present before trying to make request
-		if config.AccessToken == "" {
-			// TODO: make request to check if request will need token
-
-			// check if OCHAMI_ACCESS_TOKEN env var is set if no access token is provided and use that instead
+		if conf.AccessToken == "" {
+			// check if ACCESS_TOKEN env var is set if no access token is provided and use that instead
 			accessToken := os.Getenv("ACCESS_TOKEN")
 			if accessToken != "" {
-				config.AccessToken = accessToken
+				conf.AccessToken = accessToken
 			} else {
-				// TODO: try and fetch token first if it is needed
 				if verbose {
-					fmt.Printf("No token found. Attempting to generate config without one...\n")
+					log.Warn().Msg("No token found. Continuing without one...\n")
 				}
 			}
 		}
 
 		// show config as JSON and generators if verbose
 		if verbose {
-			b, err := json.MarshalIndent(config, "", "  ")
+			b, err := json.MarshalIndent(conf, "", "\t")
 			if err != nil {
-				fmt.Printf("failed to marshal config: %v\n", err)
+				log.Error().Err(err).Msg("failed to marshal config")
+				os.Exit(1)
 			}
 			fmt.Printf("%v\n", string(b))
 		}
 
-		// set up the routes and start the serve
-		server := server.Server{
-			Config: &config,
-			Server: &http.Server{
-				Addr: fmt.Sprintf("%s:%d", config.Server.Host, config.Server.Port),
-			},
-			Jwks: server.Jwks{
-				Uri:     config.Server.Jwks.Uri,
-				Retries: config.Server.Jwks.Retries,
-			},
-			GeneratorParams: generator.Params{
-				Args: args,
-				// PluginPath: pluginPath,
-				// Target: target,  // NOTE: targets are set via HTTP requests (ex: curl http://configurator:3334/generate?target=dnsmasq)
-				Verbose: verbose,
-			},
-		}
-
 		// start listening with the server
-		err := server.Serve(cacertPath)
+		var (
+			s   *server.Server = server.New(&conf)
+			err error          = s.Serve()
+		)
 		if errors.Is(err, http.ErrServerClosed) {
 			if verbose {
-				fmt.Printf("Server closed.")
+				log.Info().Msg("server closed")
 			}
 		} else if err != nil {
-			fmt.Errorf("failed to start server: %v", err)
+			log.Error().Err(err).Msg("failed to start server")
 			os.Exit(1)
 		}
 	},
 }
 
 func init() {
-	serveCmd.Flags().StringVar(&config.Server.Host, "host", config.Server.Host, "set the server host")
-	serveCmd.Flags().IntVar(&config.Server.Port, "port", config.Server.Port, "set the server port")
+	serveCmd.Flags().StringVar(&conf.Server.Host, "host", conf.Server.Host, "set the server host and port")
 	// serveCmd.Flags().StringVar(&pluginPath, "plugin", "", "set the generator plugins directory path")
-	serveCmd.Flags().StringVar(&config.Server.Jwks.Uri, "jwks-uri", config.Server.Jwks.Uri, "set the JWKS url to fetch public key")
-	serveCmd.Flags().IntVar(&config.Server.Jwks.Retries, "jwks-fetch-retries", config.Server.Jwks.Retries, "set the JWKS fetch retry count")
+	serveCmd.Flags().StringVar(&conf.Server.Jwks.Uri, "jwks-uri", conf.Server.Jwks.Uri, "set the JWKS url to fetch public key")
+	serveCmd.Flags().IntVar(&conf.Server.Jwks.Retries, "jwks-fetch-retries", conf.Server.Jwks.Retries, "set the JWKS fetch retry count")
 	rootCmd.AddCommand(serveCmd)
 }

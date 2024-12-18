@@ -2,9 +2,10 @@ package generator
 
 import (
 	"fmt"
-	"strings"
 
 	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/client"
+	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 )
 
@@ -22,7 +23,7 @@ func (g *DNSMasq) GetDescription() string {
 	return fmt.Sprintf("Configurator generator plugin for '%s'.", g.GetName())
 }
 
-func (g *DNSMasq) Generate(config *configurator.Config, opts ...util.Option) (FileMap, error) {
+func (g *DNSMasq) Generate(config *config.Config, params Params) (FileMap, error) {
 	// make sure we have a valid config first
 	if config == nil {
 		return nil, fmt.Errorf("invalid config (config is nil)")
@@ -30,20 +31,15 @@ func (g *DNSMasq) Generate(config *configurator.Config, opts ...util.Option) (Fi
 
 	// set all the defaults for variables
 	var (
-		params                                     = GetParams(opts...)
-		client                                     = GetClient(params)
-		targetKey                                  = params["target"].(string) // required param
-		target                                     = config.Targets[targetKey]
-		eths      []configurator.EthernetInterface = nil
-		err       error                            = nil
+		smdClient       = client.NewSmdClient(params.ClientOpts...)
+		eths            = []configurator.EthernetInterface{}
+		err       error = nil
 	)
 
 	// if we have a client, try making the request for the ethernet interfaces
-	if client != nil {
-		eths, err = client.FetchEthernetInterfaces(opts...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch ethernet interfaces with client: %v", err)
-		}
+	eths, err = smdClient.FetchEthernetInterfaces(params.Verbose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ethernet interfaces with client: %v", err)
 	}
 
 	// check if we have the required params first
@@ -52,13 +48,6 @@ func (g *DNSMasq) Generate(config *configurator.Config, opts ...util.Option) (Fi
 	}
 	if len(eths) <= 0 {
 		return nil, fmt.Errorf("no ethernet interfaces found")
-	}
-
-	// print message if verbose param found
-	if verbose, ok := params["verbose"].(bool); ok {
-		if verbose {
-			fmt.Printf("template: \n%s\nethernet interfaces found: %v\n", strings.Join(target.TemplatePaths, "\n\t"), len(eths))
-		}
 	}
 
 	// format output to write to config file
@@ -73,10 +62,10 @@ func (g *DNSMasq) Generate(config *configurator.Config, opts ...util.Option) (Fi
 	output += "# ====================================================================="
 
 	// apply template substitutions and return output as byte array
-	return ApplyTemplateFromFiles(Mappings{
+	return ApplyTemplates(Mappings{
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),
 		"dhcp-hosts":         output,
-	}, target.TemplatePaths...)
+	}, params.Templates)
 }
