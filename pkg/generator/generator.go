@@ -35,7 +35,7 @@ func createDefaultGenerators() map[string]Generator {
 	var (
 		generatorMap = map[string]Generator{}
 		generators   = []Generator{
-			&Conman{}, &DHCPd{}, &DNSMasq{}, &Warewulf{}, &Example{},
+			&Conman{}, &DHCPd{}, &DNSMasq{}, &Warewulf{}, &Example{}, &CoreDhcp{},
 		}
 	)
 	for _, g := range generators {
@@ -171,10 +171,11 @@ func Generate(plugin string, params Params) (FileMap, error) {
 	)
 
 	// check if generator is built-in first before loading external plugin
+	log.Debug().Any("generators", DefaultGenerators).Msg("available generators")
 	gen, ok = DefaultGenerators[plugin]
 	if !ok {
 		// only load the plugin needed for this target if we don't find default
-		log.Error().Msg("could not find target in default generators")
+		log.Error().Str("plugin", plugin).Msg("could not find target in default generators")
 		gen, err = LoadPlugin(plugin)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load plugin from file: %v", err)
