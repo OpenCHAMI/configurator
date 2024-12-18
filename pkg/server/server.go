@@ -156,14 +156,15 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 		if target != nil {
 			outputs, err = generator.Generate(target.PluginPath, s.GeneratorParams)
 			if err != nil {
-
+				log.Error().Err(err).Msg("failed to generate file")
+				return
 			}
 		} else {
 			// try and generate a new config file from supplied params
 			outputs, err = generator.GenerateWithTarget(s.Config, targetParam)
 			if err != nil {
 				writeErrorResponse(w, "failed to generate file")
-				log.Error().Err(err).Msg("failed to generate file")
+				log.Error().Err(err).Msgf("failed to generate file with target '%s'", target)
 				return
 			}
 		}
