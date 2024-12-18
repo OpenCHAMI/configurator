@@ -186,11 +186,17 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 }
 
 func (s *Server) loadTargets() {
+	// make sure the map is initialized first
+	if s.Targets == nil {
+		s.Targets = make(map[string]Target)
+	}
+	// add targets from config to server
 	for name, target := range s.Config.Targets {
 		serverTarget := Target{
 			Name:       name,
 			PluginPath: target.Plugin,
 		}
+		// add templates using template paths from config
 		for _, templatePath := range target.TemplatePaths {
 			template := generator.Template{}
 			template.LoadFromFile(templatePath)
