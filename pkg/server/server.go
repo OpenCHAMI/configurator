@@ -65,6 +65,7 @@ func New(conf *config.Config) *Server {
 	}
 	// load templates for server from config
 	newServer.loadTargets()
+	log.Debug().Any("targets", newServer.Targets).Msg("new server targets")
 	return newServer
 }
 
@@ -154,6 +155,7 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 
 		// try to generate with target supplied by client first
 		if target != nil {
+			log.Debug().Any("target", target).Msg("target for Generate()")
 			outputs, err = generator.Generate(target.PluginPath, s.GeneratorParams)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to generate file")
@@ -161,6 +163,7 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 			}
 		} else {
 			// try and generate a new config file from supplied params
+			log.Debug().Str("target", targetParam).Msg("target for GenerateWithTarget()")
 			outputs, err = generator.GenerateWithTarget(s.Config, targetParam)
 			if err != nil {
 				writeErrorResponse(w, "failed to generate file")
@@ -199,11 +202,16 @@ func (s *Server) loadTargets() {
 		}
 		s.Targets[name] = serverTarget
 	}
-	// add targets from config to server
+	// add targets from config to server (overwrites default targets)
 	for name, target := range s.Config.Targets {
 		serverTarget := Target{
-			Name:       name,
-			PluginPath: target.Plugin,
+			Name: name,
+		}
+		// only overwrite plugin path if it's set
+		if target.Plugin != "" {
+			serverTarget.PluginPath = target.Plugin
+		} else {
+			serverTarget.PluginPath = name
 		}
 		// add templates using template paths from config
 		for _, templatePath := range target.TemplatePaths {
@@ -270,8 +278,8 @@ func (s *Server) createTarget(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (s *Server) getTarget(target string) *Target {
-	t, ok := s.Targets[target]
+func (s *Server) getTarget(name string) *Target {
+	t, ok := s.Targets[name]
 	if ok {
 		return &t
 	}
