@@ -8,6 +8,7 @@ import (
 	"github.com/OpenCHAMI/configurator/pkg/util"
 	"github.com/nikolalohinski/gonja/v2"
 	"github.com/nikolalohinski/gonja/v2/exec"
+	"github.com/rs/zerolog/log"
 )
 
 type Template struct {
@@ -64,6 +65,8 @@ func ApplyTemplates(mappings Mappings, templates map[string]Template) (FileMap, 
 		}
 		outputs[path] = b.Bytes()
 	}
+
+	log.Debug().Any("templates", templates).Any("outputs", outputs).Any("mappings", mappings).Msg("apply templates")
 
 	return outputs, nil
 }

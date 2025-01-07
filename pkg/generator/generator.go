@@ -163,7 +163,7 @@ func LoadPlugins(dirpath string, opts ...Option) (map[string]Generator, error) {
 // be used. This function will only load the plugin on-demand and fetch resources as needed.
 //
 // This function requires that a target and plugin path be set at minimum.
-func Generate(plugin string, params Params) (FileMap, error) {
+func Generate(config *config.Config, plugin string, params Params) (FileMap, error) {
 	var (
 		gen Generator
 		ok  bool
@@ -182,7 +182,7 @@ func Generate(plugin string, params Params) (FileMap, error) {
 		}
 	}
 
-	return gen.Generate(nil, params)
+	return gen.Generate(config, params)
 }
 
 // Main function to generate a collection of files as a map with the path as the key and
@@ -230,6 +230,11 @@ func GenerateWithTarget(config *config.Config, target string) (FileMap, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load plugin: %v", err)
 		}
+	}
+
+	// check if there's at least one template available
+	if len(targetInfo.TemplatePaths) <= 0 {
+		return nil, fmt.Errorf("expects at least one template to be available")
 	}
 
 	// prepare params to pass into generator

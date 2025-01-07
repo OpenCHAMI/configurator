@@ -93,6 +93,7 @@ func (s *Server) Serve() error {
 
 	// create client with opts to use to fetch data from SMD
 	opts := []client.Option{
+		client.WithHost(s.Config.SmdClient.Host),
 		client.WithAccessToken(s.Config.AccessToken),
 		client.WithCertPoolFile(s.Config.CertPath),
 	}
@@ -146,7 +147,7 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 			outputs     generator.FileMap
 			err         error
 		)
-		s.GeneratorParams = parseGeneratorParams(r, opts...)
+		s.GeneratorParams = parseGeneratorParams(r, target, opts...)
 		if targetParam == "" {
 			err = writeErrorResponse(w, "must specify a target")
 			log.Error().Err(err).Msg("failed to parse generator params")
@@ -156,7 +157,8 @@ func (s *Server) Generate(opts ...client.Option) func(w http.ResponseWriter, r *
 		// try to generate with target supplied by client first
 		if target != nil {
 			log.Debug().Any("target", target).Msg("target for Generate()")
-			outputs, err = generator.Generate(target.PluginPath, s.GeneratorParams)
+			outputs, err = generator.Generate(s.Config, target.PluginPath, s.GeneratorParams)
+			log.Debug().Any("outputs map", outputs).Msgf("after generate")
 			if err != nil {
 				log.Error().Err(err).Msg("failed to generate file")
 				return
@@ -299,9 +301,13 @@ func writeErrorResponse(w http.ResponseWriter, format string, a ...any) error {
 	return fmt.Errorf(errmsg)
 }
 
-func parseGeneratorParams(r *http.Request, opts ...client.Option) generator.Params {
+func parseGeneratorParams(r *http.Request, target *Target, opts ...client.Option) generator.Params {
 	var params = generator.Params{
 		ClientOpts: opts,
+		Templates:  make(map[string]generator.Template, len(target.Templates)),
+	}
+	for i, template := range target.Templates {
+		params.Templates[fmt.Sprintf("%s_%d", target.Name, i)] = template
 	}
 	return params
 }
