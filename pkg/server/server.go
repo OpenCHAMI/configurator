@@ -125,7 +125,7 @@ func (s *Server) Serve() error {
 	}
 
 	// always available public routes go here (none at the moment)
-	router.HandleFunc("/status", s.GetStatus)
+	router.HandleFunc("/configurator/status", s.GetStatus)
 
 	s.Handler = router
 	return s.ListenAndServe()
