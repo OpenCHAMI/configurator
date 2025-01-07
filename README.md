@@ -153,6 +153,10 @@ func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option)
   })
 }
 
+> [!NOTE]
+> The keys in `generator.ApplyTemplate` must not contain illegal characters such as a `-` or else the templates will not apply correctly.
+
+
 // this MUST be named "Generator" for symbol lookup in main driver
 var Generator MyGenerator
 ```
