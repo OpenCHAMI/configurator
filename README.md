@@ -154,13 +154,12 @@ func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option)
   }
 }
 
-> [!NOTE]
-> The keys in `generator.ApplyTemplate` must not contain illegal characters such as a `-` or else the templates will not apply correctly.
-
-
 // this MUST be named "Generator" for symbol lookup in main driver
 var Generator MyGenerator
 ```
+
+> [!NOTE]
+> The keys in `generator.ApplyTemplate` must not contain illegal characters such as a `-` or else the templates will not apply correctly.
 
 Finally, build the plugin and put it somewhere specified by `plugins` in your config. Make sure that the package is `main` before building.
 
@@ -169,6 +168,9 @@ go build -buildmode=plugin -o lib/mygenerator.so path/to/mygenerator.go
 ```
 
 Now your plugin should be available to use with the `configurator` main driver program. If you get an error about not loading the correct symbol type, make sure that your generator function definitions match the `Generator` interface entirely and that you don't have a partially implemented interface.
+
+> [!TIP]
+> See the `examples/test.go` file for a plugin and template example.
 
 ## Configuration
 
