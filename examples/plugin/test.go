@@ -13,7 +13,11 @@ func (g *TestGenerator) GetDescription() string {
 	return "This is a plugin creating for running tests."
 }
 func (g *TestGenerator) Generate(config *config.Config, params generator.Params) (generator.FileMap, error) {
-	return generator.FileMap{"test": []byte("test")}, nil
+	return generator.ApplyTemplates(generator.Mappings{
+		"plugin_name":        g.GetName(),
+		"plugin_version":     g.GetVersion(),
+		"plugin_description": g.GetDescription(),
+	}, params.Templates)
 }
 
 var Generator TestGenerator
