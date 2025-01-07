@@ -24,16 +24,22 @@ var fetchCmd = &cobra.Command{
 			return
 		}
 
+		// check if we actually have any targets to run
+		if len(targets) <= 0 {
+			log.Error().Msg("must specify a target")
+			os.Exit(1)
+		}
+
 		// check to see if an access token is available from env
-		if config.AccessToken == "" {
+		if conf.AccessToken == "" {
 			// check if OCHAMI_ACCESS_TOKEN env var is set if no access token is provided and use that instead
 			accessToken := os.Getenv("ACCESS_TOKEN")
 			if accessToken != "" {
-				config.AccessToken = accessToken
+				conf.AccessToken = accessToken
 			} else {
 				// TODO: try and fetch token first if it is needed
 				if verbose {
-					fmt.Printf("No token found. Attempting to generate config without one...\n")
+					log.Warn().Msg("No token found. Attempting to generate config without one...")
 				}
 			}
 		}
@@ -46,25 +52,23 @@ var fetchCmd = &cobra.Command{
 
 		for _, target := range targets {
 			// make a request for each target
-			url := fmt.Sprintf("%s:%d/generate?target=%s", remoteHost, remotePort, target)
+			url := fmt.Sprintf("%s/generate?target=%s", remoteHost, target)
 			res, body, err := util.MakeRequest(url, http.MethodGet, nil, headers)
 			if err != nil {
-				log.Error().Err(err).Msg("failed to make request")
+				log.Error().Err(err).Msg("failed to fetch files")
 				return
 			}
 			// handle getting other error codes other than a 200
 			if res != nil {
-				if res.StatusCode == http.StatusOK {
-					log.Info().Msgf("%s\n", string(body))
-				}
+				// NOTE: the server responses are already marshaled to JSON
+				fmt.Print(string(body))
 			}
 		}
 	},
 }
 
 func init() {
-	fetchCmd.Flags().StringVar(&remoteHost, "host", "", "set the remote configurator host")
-	fetchCmd.Flags().IntVar(&remotePort, "port", 3334, "set the remote configurator port")
+	fetchCmd.Flags().StringVar(&remoteHost, "host", "", "set the remote configurator host and port")
 	fetchCmd.Flags().StringSliceVar(&targets, "target", nil, "set the target configs to make")
 	fetchCmd.Flags().StringVarP(&outputPath, "output", "o", "", "set the output path for config targets")
 	fetchCmd.Flags().StringVar(&accessToken, "access-token", "o", "set the output path for config targets")

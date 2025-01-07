@@ -9,7 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	configurator "github.com/OpenCHAMI/configurator/pkg"
+	"github.com/OpenCHAMI/configurator/pkg/client"
+	"github.com/OpenCHAMI/configurator/pkg/config"
 	"github.com/OpenCHAMI/configurator/pkg/generator"
 	"github.com/OpenCHAMI/configurator/pkg/util"
 	"github.com/rs/zerolog/log"
@@ -28,48 +29,75 @@ var generateCmd = &cobra.Command{
 	Short: "Generate a config file from state management",
 	Run: func(cmd *cobra.Command, args []string) {
 		// make sure that we have a token present before trying to make request
-		if config.AccessToken == "" {
+		if conf.AccessToken == "" {
 			// check if OCHAMI_ACCESS_TOKEN env var is set if no access token is provided and use that instead
 			accessToken := os.Getenv("ACCESS_TOKEN")
 			if accessToken != "" {
-				config.AccessToken = accessToken
+				conf.AccessToken = accessToken
 			} else {
 				// TODO: try and fetch token first if it is needed
 				if verbose {
-					fmt.Printf("No token found. Attempting to generate config without one...\n")
+					log.Warn().Msg("No token found. Attempting to generate conf without one...\n")
 				}
 			}
 		}
 
 		// use cert path from cobra if empty
-		if config.CertPath == "" {
-			config.CertPath = cacertPath
+		if conf.CertPath == "" {
+			conf.CertPath = cacertPath
 		}
 
-		// show config as JSON and generators if verbose
+		// show conf as JSON and generators if verbose
 		if verbose {
-			b, err := json.MarshalIndent(config, "", "  ")
+			b, err := json.MarshalIndent(conf, "", "  ")
 			if err != nil {
-				fmt.Printf("failed to marshal config: %v\n", err)
+				log.Error().Err(err).Msg("failed to marshal config")
 			}
+			// print the config file as JSON
 			fmt.Printf("%v\n", string(b))
 		}
 
 		// run all of the target recursively until completion if provided
 		if len(targets) > 0 {
-			RunTargets(&config, args, targets...)
+			RunTargets(&conf, args, targets...)
 		} else {
 			if pluginPath == "" {
-				fmt.Printf("no plugin path specified")
+				log.Error().Msg("no plugin path specified")
 				return
 			}
 
-			// run generator.Generate() with just plugin path and templates provided
-			generator.Generate(&config, generator.Params{
-				PluginPath:    pluginPath,
-				TemplatePaths: templatePaths,
-			})
+			// load the templates to use
+			templates := map[string]generator.Template{}
+			for _, path := range templatePaths {
+				template := generator.Template{}
+				template.LoadFromFile(path)
+				if !template.IsEmpty() {
+					templates[path] = template
+				}
+			}
 
+			params := generator.Params{
+				Templates: templates,
+			}
+
+			// set the client options
+			// params.ClientOpts = append(params.ClientOpts, client.WithHost(remoteHost))
+			if conf.AccessToken != "" {
+				params.ClientOpts = append(params.ClientOpts, client.WithAccessToken(conf.AccessToken))
+			}
+			if conf.CertPath != "" {
+				params.ClientOpts = append(params.ClientOpts, client.WithCertPoolFile(conf.CertPath))
+			}
+
+			// run generator.Generate() with just plugin path and templates provided
+			outputBytes, err := generator.Generate(&conf, pluginPath, params)
+			if err != nil {
+				log.Error().Err(err).Msg("failed to generate files")
+			}
+
+			// if we have more than one target and output is set, create configs in directory
+			outputMap := generator.ConvertContentsToString(outputBytes)
+			writeOutput(outputBytes, len(targets), len(outputMap))
 		}
 	},
 }
@@ -80,103 +108,98 @@ var generateCmd = &cobra.Command{
 // child targets if it is the same as the parent.
 //
 // NOTE: This may be changed in the future how this is done.
-func RunTargets(config *configurator.Config, args []string, targets ...string) {
+func RunTargets(conf *config.Config, args []string, targets ...string) {
 	// generate config with each supplied target
 	for _, target := range targets {
-		outputBytes, err := generator.GenerateWithTarget(config, generator.Params{
-			Args:       args,
-			PluginPath: pluginPath,
-			Target:     target,
-			Verbose:    verbose,
-		})
+		outputBytes, err := generator.GenerateWithTarget(conf, target)
 		if err != nil {
-			log.Error().Err(err).Msg("failed to generate config")
+			log.Error().Err(err).Str("target", target).Msg("failed to generate config")
 			os.Exit(1)
 		}
 
 		// if we have more than one target and output is set, create configs in directory
-		var (
-			outputMap     = generator.ConvertContentsToString(outputBytes)
-			targetCount   = len(targets)
-			templateCount = len(outputMap)
-		)
-		if outputPath == "" {
-			// write only to stdout by default
-			if len(outputMap) == 1 {
-				for _, contents := range outputMap {
-					fmt.Printf("%s\n", string(contents))
-				}
-			} else {
-				for path, contents := range outputMap {
-					fmt.Printf("-- file: %s, size: %d B\n%s\n", path, len(contents), string(contents))
-				}
-			}
-		} else if outputPath != "" && targetCount == 1 && templateCount == 1 {
-			// write just a single file using provided name
-			for _, contents := range outputBytes {
-				err := os.WriteFile(outputPath, contents, 0o644)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to write config to file")
-					os.Exit(1)
-				}
-				log.Info().Msgf("wrote file to '%s'\n", outputPath)
-			}
-		} else if outputPath != "" && targetCount > 1 && useCompression {
-			// write multiple files to archive, compress, then save to output path
-			out, err := os.Create(fmt.Sprintf("%s.tar.gz", outputPath))
-			if err != nil {
-				log.Error().Err(err).Msg("failed to write archive")
-				os.Exit(1)
-			}
-			files := make([]string, len(outputBytes))
-			i := 0
-			for path := range outputBytes {
-				files[i] = path
-				i++
-			}
-			err = util.CreateArchive(files, out)
-			if err != nil {
-				log.Error().Err(err).Msg("failed to create archive")
-				os.Exit(1)
-			}
-
-		} else if outputPath != "" && targetCount > 1 || templateCount > 1 {
-			// write multiple files in directory using template name
-			err := os.MkdirAll(filepath.Clean(outputPath), 0o755)
-			if err != nil {
-				log.Error().Err(err).Msg("failed to make output directory")
-				os.Exit(1)
-			}
-			for path, contents := range outputBytes {
-				filename := filepath.Base(path)
-				cleanPath := fmt.Sprintf("%s/%s", filepath.Clean(outputPath), filename)
-				err := os.WriteFile(cleanPath, contents, 0o755)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to write config to file")
-					os.Exit(1)
-				}
-				log.Info().Msgf("wrote file to '%s'\n", cleanPath)
-			}
-		}
+		outputMap := generator.ConvertContentsToString(outputBytes)
+		writeOutput(outputBytes, len(targets), len(outputMap))
 
 		// remove any targets that are the same as current to prevent infinite loop
-		nextTargets := util.CopyIf(config.Targets[target].RunTargets, func(nextTarget string) bool {
+		nextTargets := util.CopyIf(conf.Targets[target].RunTargets, func(nextTarget string) bool {
 			return nextTarget != target
 		})
 
 		// ...then, run any other targets that the current target has
-		RunTargets(config, args, nextTargets...)
+		RunTargets(conf, args, nextTargets...)
+	}
+}
+
+func writeOutput(outputBytes generator.FileMap, targetCount int, templateCount int) {
+	outputMap := generator.ConvertContentsToString(outputBytes)
+	if outputPath == "" {
+		// write only to stdout by default
+		if len(outputMap) == 1 {
+			for _, contents := range outputMap {
+				fmt.Printf("%s\n", string(contents))
+			}
+		} else {
+			for path, contents := range outputMap {
+				fmt.Printf("-- file: %s, size: %d B\n%s\n", path, len(contents), string(contents))
+			}
+		}
+	} else if outputPath != "" && targetCount == 1 && templateCount == 1 {
+		// write just a single file using provided name
+		for _, contents := range outputBytes {
+			err := os.WriteFile(outputPath, contents, 0o644)
+			if err != nil {
+				log.Error().Err(err).Str("path", outputPath).Msg("failed to write config file")
+				os.Exit(1)
+			}
+			log.Info().Msgf("wrote file to '%s'\n", outputPath)
+		}
+	} else if outputPath != "" && targetCount > 1 && useCompression {
+		// write multiple files to archive, compress, then save to output path
+		out, err := os.Create(fmt.Sprintf("%s.tar.gz", outputPath))
+		if err != nil {
+			log.Error().Err(err).Str("path", outputPath).Msg("failed to write archive")
+			os.Exit(1)
+		}
+		files := make([]string, len(outputBytes))
+		i := 0
+		for path := range outputBytes {
+			files[i] = path
+			i++
+		}
+		err = util.CreateArchive(files, out)
+		if err != nil {
+			log.Error().Err(err).Str("path", outputPath).Msg("failed to create archive")
+			os.Exit(1)
+		}
+
+	} else if outputPath != "" && targetCount > 1 || templateCount > 1 {
+		// write multiple files in directory using template name
+		err := os.MkdirAll(filepath.Clean(outputPath), 0o755)
+		if err != nil {
+			log.Error().Err(err).Str("path", filepath.Clean(outputPath)).Msg("failed to make output directory")
+			os.Exit(1)
+		}
+		for path, contents := range outputBytes {
+			filename := filepath.Base(path)
+			cleanPath := fmt.Sprintf("%s/%s", filepath.Clean(outputPath), filename)
+			err := os.WriteFile(cleanPath, contents, 0o755)
+			if err != nil {
+				log.Error().Err(err).Str("path", path).Msg("failed to write config to file")
+				os.Exit(1)
+			}
+			log.Info().Msgf("wrote file to '%s'\n", cleanPath)
+		}
 	}
 }
 
 func init() {
-	generateCmd.Flags().StringSliceVar(&targets, "target", []string{}, "set the targets to run pre-defined config")
+	generateCmd.Flags().StringSliceVar(&targets, "target", []string{}, "set the targets to run pre-defined conf")
 	generateCmd.Flags().StringSliceVar(&templatePaths, "template", []string{}, "set the paths for the Jinja 2 templates to use")
 	generateCmd.Flags().StringVar(&pluginPath, "plugin", "", "set the generator plugin path")
-	generateCmd.Flags().StringVarP(&outputPath, "output", "o", "", "set the output path for config targets")
+	generateCmd.Flags().StringVarP(&outputPath, "output", "o", "", "set the output path for conf targets")
 	generateCmd.Flags().IntVar(&tokenFetchRetries, "fetch-retries", 5, "set the number of retries to fetch an access token")
 	generateCmd.Flags().StringVar(&remoteHost, "host", "http://localhost", "set the remote host")
-	generateCmd.Flags().IntVar(&remotePort, "port", 80, "set the remote port")
 	generateCmd.Flags().BoolVar(&useCompression, "compress", false, "set whether to archive and compress multiple file outputs")
 
 	// requires either 'target' by itself or 'plugin' and 'templates' together
