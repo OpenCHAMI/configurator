@@ -66,6 +66,6 @@ func (g *DNSMasq) Generate(config *config.Config, params Params) (FileMap, error
 		"plugin_name":        g.GetName(),
 		"plugin_version":     g.GetVersion(),
 		"plugin_description": g.GetDescription(),
-		"output":             output,
+		"dhcp_hosts":         output,
 	}, params.Templates)
 }
