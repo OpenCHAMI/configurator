@@ -81,6 +81,7 @@ var generateCmd = &cobra.Command{
 			}
 
 			// set the client options
+			// params.ClientOpts = append(params.ClientOpts, client.WithHost(remoteHost))
 			if conf.AccessToken != "" {
 				params.ClientOpts = append(params.ClientOpts, client.WithAccessToken(conf.AccessToken))
 			}
@@ -89,7 +90,7 @@ var generateCmd = &cobra.Command{
 			}
 
 			// run generator.Generate() with just plugin path and templates provided
-			outputBytes, err := generator.Generate(pluginPath, params)
+			outputBytes, err := generator.Generate(&conf, pluginPath, params)
 			if err != nil {
 				log.Error().Err(err).Msg("failed to generate files")
 			}

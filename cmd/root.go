@@ -40,13 +40,13 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(InitConfig)
 	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", "", "set the config path")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "set to enable verbose output")
 	rootCmd.PersistentFlags().StringVar(&cacertPath, "cacert", "", "path to CA cert. (defaults to system CAs)")
 }
 
-func initConfig() {
+func InitConfig() {
 	// empty from not being set
 	if configPath != "" {
 		exists, err := util.PathExists(configPath)
