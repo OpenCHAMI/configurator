@@ -144,13 +144,14 @@ func (g *MyGenerator) Generate(config *configurator.Config, opts ...util.Option)
     // ... blah, blah, blah, check error, format output, and so on...
   
 
-  // apply the substitutions to Jinja template and return output as FileMap (i.e. path and it's contents)
-  return generator.ApplyTemplate(path, generator.Mappings{
-    "plugin_name":        g.GetName(),
-    "plugin_version":     g.GetVersion(),
-    "plugin_description": g.GetDescription(),
-    "dhcp_hosts": output,
-  })
+    // apply the substitutions to Jinja template and return output as FileMap (i.e. path and it's contents)
+    return generator.ApplyTemplate(path, generator.Mappings{
+      "plugin_name":        g.GetName(),
+      "plugin_version":     g.GetVersion(),
+      "plugin_description": g.GetDescription(),
+      "dhcp_hosts": output,
+    })
+  }
 }
 
 > [!NOTE]
