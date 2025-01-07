@@ -125,6 +125,7 @@ func (s *Server) Serve() error {
 	}
 
 	// always available public routes go here (none at the moment)
+	router.HandleFunc("/configurator/status", s.GetStatus)
 
 	s.Handler = router
 	return s.ListenAndServe()
@@ -222,6 +223,19 @@ func (s *Server) loadTargets() {
 			serverTarget.Templates = append(serverTarget.Templates, template)
 		}
 		s.Targets[name] = serverTarget
+	}
+}
+
+func (s *Server) GetStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	data := map[string]any{
+		"code":    200,
+		"message": "Configurator is healthy",
+	}
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		fmt.Printf("failed to encode JSON: %v\n", err)
+		return
 	}
 }
 
